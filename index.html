@@ -2671,7 +2671,7 @@ const FBV = 'https://www.gstatic.com/firebasejs/13.3.0/', SAVE = 'nb_save2';   /
 const rd = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, wr = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 const ssGet = k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, ssSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} };
 let lastUp = '', giftBusy = false;
-const OWNER = 'FZW2ZUbKUrQTVHg1mQu0LwnoOUh2';   // only this account sees the gift panel; the REAL protection is in the Firestore Rules
+const OWNER = '7y05F07TyIheSQiZIxmYaH9CL8d2';   // only this account sees the gift panel; the REAL protection is in the Firestore Rules
 const fbReady = (async () => {
   const [A, au, fs] = await Promise.all([import(FBV + 'firebase-app.js'), import(FBV + 'firebase-auth.js'), import(FBV + 'firebase-firestore.js')]);
   const app = A.initializeApp(FB_CFG);

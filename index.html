@@ -1379,7 +1379,7 @@ addEventListener('resize', () => {
 <script>
 /* AYMANE ADDON v6 */
 (() => {
-const FORCE = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent) || matchMedia('(pointer:coarse)').matches;   // auto: phone/tablet or PCconst MOBILE = FORCE;
+const MOBILE = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent) || matchMedia('(pointer:coarse)').matches, FORCE = MOBILE;
 const $$ = id => document.getElementById(id);
 const hex = n => '#' + n.toString(16).padStart(6, '0');
 

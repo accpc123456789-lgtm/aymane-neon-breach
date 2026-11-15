@@ -2415,7 +2415,8 @@ const FB_CFG = { apiKey: 'AIzaSyBqFE1FYjCXZsiF3OUcuQ2vIQF5wEaGLag', authDomain: 
 const FBV = 'https://www.gstatic.com/firebasejs/13.3.0/', SAVE = 'nb_save2';   // SAVE = the game's own save slot (SV lives in another closure, so we sync through localStorage)
 const rd = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, wr = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 const ssGet = k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, ssSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} };
-let lastUp = '';
+let lastUp = '', giftBusy = false;
+const OWNER = 'FZW2ZUbKUrQTVHg1mQu0LwnoOUh2';   // only this account sees the gift panel; the REAL protection is in the Firestore Rules
 const fbReady = (async () => {
   const [A, au, fs] = await Promise.all([import(FBV + 'firebase-app.js'), import(FBV + 'firebase-auth.js'), import(FBV + 'firebase-firestore.js')]);
   const app = A.initializeApp(FB_CFG);
@@ -2430,7 +2431,8 @@ function view(v, errTxt) {
   const c = E('ent-card'), er = errTxt ? `<p class="er">${esc(errTxt)}</p>` : '';
   if (v === 'load') c.innerHTML = '<h3>CONNECTING…</h3><p class="nt">Loading your account</p>' + er + (errTxt ? '<button class="ab pri" data-e="retry">↻ TRY AGAIN</button><button class="ab" data-e="offline">▶ Play offline (no account)</button>' : '');
   else if (v === 'welcome') c.innerHTML = `<div class="av">${avatar(ACC)}</div><h3>WELCOME BACK</h3><div class="nm">${esc(ACC.name)}</div><div class="pv">${ACC.pid ? 'Player ID #' + esc(ACC.pid) + ' · ' : ''}${ACC.guest ? 'Ghost account' : '✔ Google'}</div><button class="ab pri" data-e="cont">▶ CONTINUE</button>${ACC.guest ? LINKBTN : ''}<button class="ab sm" data-e="out">⏏ Log out</button>${er}`;
-  else if (v === 'id') c.innerHTML = `<h3>YOUR PLAYER ID</h3><div class="nm">#${esc(ACC.pid || '—')}</div><button class="ab sm" data-e="copy">📋 Copy my ID</button>${ACC.guest ? LINKBTN : ''}<input id="ent-q" maxlength="9" inputmode="numeric" placeholder="Search a player by ID"><button class="ab pri" data-e="find" style="margin-top:8px">🔎 SEARCH</button><div class="nt" id="ent-res"></div><button class="ab sm" data-e="close">✕ Close</button>`;
+  else if (v === 'admin') c.innerHTML = `<h3>🎁 SEND A GIFT</h3><p class="nt">Admin only. The player receives it next time he is in the lobby.</p><input id="g-pid" maxlength="9" inputmode="numeric" placeholder="Player ID (9 digits)"><input id="g-gold" inputmode="numeric" placeholder="Gold 🪙 (example 500)"><input id="g-dia" inputmode="numeric" placeholder="Diamonds 💎 (example 10)"><input id="g-msg" maxlength="60" placeholder="Message (optional)"><button class="ab pri" data-e="send">🎁 SEND</button><div class="nt" id="g-res"></div><button class="ab sm" data-e="id">← Back</button>`;
+  else if (v === 'id') c.innerHTML = `<h3>YOUR PLAYER ID</h3><div class="nm">#${esc(ACC.pid || '—')}</div><button class="ab sm" data-e="copy">📋 Copy my ID</button>${ACC.guest ? LINKBTN : ''}${ACC.id === OWNER ? '<button class="ab" data-e="admin" style="--c:#ffe066">🎁 ADMIN · Send a gift</button>' : ''}<input id="ent-q" maxlength="9" inputmode="numeric" placeholder="Search a player by ID"><button class="ab pri" data-e="find" style="margin-top:8px">🔎 SEARCH</button><div class="nt" id="ent-res"></div><button class="ab sm" data-e="close">✕ Close</button>`;
   else c.innerHTML = `<h3>${linking ? 'LINK YOUR ACCOUNT' : 'SIGN IN'}</h3><p class="nt">Your 🪙 gold, 💎 diamonds and skins are saved in the cloud with your own player ID.</p>
     <button class="ab" style="--c:#4285f4" data-e="google"><i style="background:#fff;color:#4285f4">G</i>Continue with Google</button>
     <button class="ab soon" data-e="soon"><i style="background:#1877f2;color:#fff">f</i>Facebook</button>
@@ -2448,6 +2450,19 @@ E('ent-card').addEventListener('click', async e => {
     else if (a === 'link') { linking = true; view('login'); }
     else if (a === 'close') { linking = false; ACC ? outro() : view('login'); }
     else if (a === 'soon') toast('Coming soon');
+    else if (a === 'id') view('id');
+    else if (a === 'admin') { if (ACC && ACC.id === OWNER) view('admin'); }
+    else if (a === 'send') {
+      if (!ACC || ACC.id !== OWNER) return;
+      const pid = E('g-pid').value.trim(), gold = Math.floor(+E('g-gold').value || 0), dia = Math.floor(+E('g-dia').value || 0), out = E('g-res');
+      if (!/^\d{9}$/.test(pid)) { out.textContent = 'Enter a 9-digit ID'; return; }
+      if (gold < 0 || dia < 0 || (!gold && !dia) || gold > 1e6 || dia > 1e5) { out.textContent = 'Amounts: 1 to 1,000,000 gold and 1 to 100,000 diamonds'; return; }
+      const { fs, db } = await fbReady, p = await fs.getDoc(fs.doc(db, 'players', pid));
+      if (!p.exists()) { out.textContent = '❌ No player with this ID'; return; }
+      if (!confirm('Send ' + gold + ' gold + ' + dia + ' diamonds to ' + p.data().name + ' (#' + pid + ')?')) return;
+      await fs.addDoc(fs.collection(db, 'gifts'), { to: p.data().uid, toPid: pid, gold, dia, msg: E('g-msg').value.trim().slice(0, 60), from: ACC.id, claimed: false, created: fs.serverTimestamp() });
+      out.textContent = '✅ Gift sent to ' + p.data().name + ' (#' + pid + ')';
+    }
     else if (a === 'retry') location.reload();
     else if (a === 'offline') { ACC = null; pill(); outro(); }
     else if (a === 'google') { view('load'); await gLogin(); }
@@ -2459,7 +2474,7 @@ E('ent-card').addEventListener('click', async e => {
       const { fs, db } = await fbReady, s = await fs.getDoc(fs.doc(db, 'players', q));
       out.textContent = s.exists() ? '✔ ' + s.data().name + ' · #' + q + ' · ' + String(s.data().char || '').toUpperCase() : '❌ No player with this ID';
     }
-  } catch (err) { view(ACC && a === 'find' ? 'id' : 'login', '❌ ' + (err && (err.code || err.message) || err)); }
+  } catch (err) { const m = '❌ ' + (err && (err.code || err.message) || err); if (a === 'send' && E('g-res')) E('g-res').textContent = m; else view(ACC && a === 'find' ? 'id' : 'login', m); }
 });
 
 // ---------- Login / account logic ----------
@@ -2496,7 +2511,32 @@ async function afterLogin(fresh) {
   }
   await fs.setDoc(ref, { pid, name: nm, ...(d.save ? {} : { save: local || JSON.stringify(FRESH()) }), updated: fs.serverTimestamp() }, { merge: true });
   fs.updateDoc(fs.doc(db, 'players', pid), { name: nm }).catch(() => {});
-  lastUp = local || ''; outro(fresh);
+  lastUp = local || ''; if (await claimGifts()) return; outro(fresh);
+}
+async function claimGifts() {   // add received gifts to the save: ids are stored inside the save, so a gift can never be applied twice
+  if (giftBusy || !ACC || !ACC.id || !document.body.classList.contains('inlobby')) return false;
+  giftBusy = true;
+  try {
+    const { fs, db } = await fbReady;
+    const snap = await fs.getDocs(fs.query(fs.collection(db, 'gifts'), fs.where('to', '==', ACC.id), fs.where('claimed', '==', false)));
+    if (snap.empty) return false;
+    let sv; try { sv = JSON.parse(rd(SAVE) || '{}'); } catch (e) { return false; }
+    sv.gifts = Array.isArray(sv.gifts) ? sv.gifts : [];
+    let g = 0, d = 0, n = 0, note = '';
+    snap.forEach(x => {
+      const v = x.data(); if (sv.gifts.includes(x.id)) return;
+      g += Math.max(0, Math.min(1e6, v.gold | 0)); d += Math.max(0, Math.min(1e5, v.dia | 0)); n++; sv.gifts.push(x.id); if (!note && v.msg) note = String(v.msg).slice(0, 60);
+    });
+    if (n) {
+      sv.gold = (+sv.gold || 0) + g; sv.dia = (+sv.dia || 0) + d; sv.gifts = sv.gifts.slice(-200);
+      const s = JSON.stringify(sv); wr(SAVE, s);
+      await fs.setDoc(fs.doc(db, 'users', ACC.id), { save: s, updated: fs.serverTimestamp() }, { merge: true }); lastUp = s;
+      ssSet('nb_hello', '🎁 Gift: +' + g + ' 🪙 +' + d + ' 💎' + (note ? ' · ' + note : ''));
+    }
+    await Promise.all(snap.docs.map(x => fs.updateDoc(x.ref, { claimed: true, claimedAt: fs.serverTimestamp() })));   // marked only AFTER it is safely saved
+    if (n) { setTimeout(() => location.reload(), 600); return true; }
+    return false;
+  } catch (e) { return false; } finally { giftBusy = false; }
 }
 async function upload() {   // copy the game's save to the cloud (only when it changed)
   const s = rd(SAVE); if (!ACC || !ACC.pid || !s || s === lastUp) return; lastUp = s;
@@ -2505,7 +2545,7 @@ async function upload() {   // copy the game's save to the cloud (only when it c
     const c = JSON.parse(s).char; if (c && c !== ACC.char) { ACC.char = c; await fs.updateDoc(fs.doc(db, 'players', ACC.pid), { char: c }); }
   } catch (e) { lastUp = ''; }
 }
-setInterval(upload, 30000); addEventListener('pagehide', upload); document.addEventListener('visibilitychange', () => { if (document.hidden) upload(); });
+setInterval(upload, 30000); setInterval(claimGifts, 45000); addEventListener('pagehide', upload); document.addEventListener('visibilitychange', () => { if (document.hidden) upload(); });
 async function logout() {
   if (ACC && ACC.guest && !confirm('A Ghost account can NEVER be recovered after logging out. Link Google first to keep it.\n\nLog out anyway?')) return;
   await upload(); const { au, auth } = await fbReady; await au.signOut(auth);
@@ -2619,6 +2659,7 @@ fbReady.then(async ({ auth }) => {
   await auth.authStateReady(); const u = auth.currentUser;
   if (!u) { ACC = null; try { localStorage.removeItem(AK); sessionStorage.removeItem('nb_sess'); } catch (e) {} pill(); if (inSess) open('login'); else view('login'); }
   else if (!inSess) { if (!ACC || ACC.id !== u.uid) ACC = { id: u.uid, name: pname(u), pic: u.photoURL || '', guest: u.isAnonymous, provider: u.isAnonymous ? 'ghost' : 'google', pid: '' }; view('welcome'); }
+  else claimGifts();
 }).catch(e => { if (!inSess) view('load', 'Could not load Firebase: ' + (e.message || e)); });
 })();
 </script>

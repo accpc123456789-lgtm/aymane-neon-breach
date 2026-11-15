@@ -2333,11 +2333,8 @@ buildChar(); placeStage(); render();   // first draw of the lobby (after everyth
 })();
 </script>
 <script>
-/* AYMANE ENTRANCE v5 — paste this block at the very END of your file, right before </body> (after the "ADDON v4" script) */
+/* AYMANE ENTRANCE v6 (Firebase) — paste this block at the very END of your file, right before </body> (after the "ADDON v4" script) */
 (() => {
-// ====== 1) LOGIN SETTINGS: put your real IDs here. Empty = DEMO mode (local name only, no real Google/Facebook/VK) ======
-const AUTH = { googleClientId: '30899290295-o5vbvr303u4ohm2r6f3irc35eh84hf0c.apps.googleusercontent.com', facebookAppId: '', vkAppId: '' };
-
 const E = id => document.getElementById(id), AK = 'nb_acc', PK = 'nb_prof_';
 const esc = s => String(s).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');
 const FRESH = () => ({ gold: 200, dia: 10, chars: ['aymane'], wsk: ['default'], char: 'aymane', wsk_sel: 'default', weapon: 'ak', w2: 'm4' });
@@ -2399,6 +2396,8 @@ css.textContent = `
 @keyframes fl{50%{opacity:.25}}
 #ent-toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,40px);z-index:60;background:#ff2fd0;color:#fff;padding:10px 22px;border-radius:12px;font:bold 15px Arial;opacity:0;transition:.4s;pointer-events:none;box-shadow:0 0 20px #f2f}
 #ent-toast.on{opacity:1;transform:translate(-50%,0)}
+#ent .ab.soon{opacity:.45}
+#ent .ab.soon::before{content:"SOON";order:3;margin-left:auto;font-size:10px;letter-spacing:2px;color:#ffe066}
 @media(prefers-reduced-motion:reduce){#ent *{animation-duration:.01s!important}}
 `;
 document.head.appendChild(css);
@@ -2411,107 +2410,121 @@ const tst = document.createElement('div'); tst.id = 'ent-toast'; document.body.a
 const toast = t => { tst.textContent = t; tst.classList.add('on'); setTimeout(() => tst.classList.remove('on'), 2200); };
 ent.addEventListener('keydown', e => e.stopPropagation());   // typing a name must not trigger game keys (Space etc.)
 
+// ---------- Firebase: accounts + cloud save + public player ID ----------
+const FB_CFG = { apiKey: 'AIzaSyBqFE1FYjCXZsiF3OUcuQ2vIQF5wEaGLag', authDomain: 'aymane-neon-breach.firebaseapp.com', projectId: 'aymane-neon-breach', storageBucket: 'aymane-neon-breach.firebasestorage.app', messagingSenderId: '870918511939', appId: '1:870918511939:web:dfc55f7a6808f200d863f6' };
+const FBV = 'https://www.gstatic.com/firebasejs/13.3.0/', SAVE = 'nb_save2';   // SAVE = the game's own save slot (SV lives in another closure, so we sync through localStorage)
+const rd = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, wr = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const ssGet = k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, ssSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} };
+let lastUp = '';
+const fbReady = (async () => {
+  const [A, au, fs] = await Promise.all([import(FBV + 'firebase-app.js'), import(FBV + 'firebase-auth.js'), import(FBV + 'firebase-firestore.js')]);
+  const app = A.initializeApp(FB_CFG);
+  return { au, fs, auth: au.getAuth(app), db: fs.getFirestore(app) };
+})();
+const pname = u => (u.displayName || (u.providerData[0] && u.providerData[0].displayName) || 'GHOST').slice(0, 20);
+
 // ---------- Card views ----------
 const avatar = a => a.pic ? `<img src="${esc(a.pic)}" alt="">` : (a.guest ? '👻' : `<b>${esc((a.name || '?')[0].toUpperCase())}</b>`);
+const LINKBTN = '<button class="ab" data-e="link" style="--c:#ff2fd0">🔗 Link Google and keep this account forever</button>';
 function view(v, errTxt) {
-  const c = E('ent-card');
-  if (v === 'welcome') c.innerHTML = `<div class="av">${avatar(ACC)}</div><h3>WELCOME BACK</h3><div class="nm">${esc(ACC.name)}</div><div class="pv">${ACC.guest ? 'Guest · progress is saved only in this browser' : '✔ Signed in with ' + esc(ACC.provider)}</div>
-    <button class="ab pri" data-e="cont">▶ CONTINUE</button>${ACC.guest ? '<button class="ab" data-e="link" style="--c:#ff2fd0">🔗 Link an account and keep your progress</button>' : ''}<button class="ab sm" data-e="out">${ACC.guest ? 'Use another account' : '⏏ Log out'}</button>`;
-  else if (v === 'demo') c.innerHTML = `<h3>${esc(provider.toUpperCase())} · DEMO</h3><p class="nt">No ${esc(provider)} app ID is set in the AUTH settings yet, so this is a local demo. Choose a player name:</p><input id="ent-nm" maxlength="14" value="Player"><button class="ab pri" data-e="demo">▶ CONTINUE</button><button class="ab sm" data-e="back">← Back</button>`;
-  else c.innerHTML = `<h3>${linking ? 'LINK YOUR ACCOUNT' : 'SIGN IN'}</h3><p class="nt">Keep your 🪙 gold, 💎 diamonds and skins in your account.</p>
+  const c = E('ent-card'), er = errTxt ? `<p class="er">${esc(errTxt)}</p>` : '';
+  if (v === 'load') c.innerHTML = '<h3>CONNECTING…</h3><p class="nt">Loading your account</p>' + er + (errTxt ? '<button class="ab pri" data-e="retry">↻ TRY AGAIN</button><button class="ab" data-e="offline">▶ Play offline (no account)</button>' : '');
+  else if (v === 'welcome') c.innerHTML = `<div class="av">${avatar(ACC)}</div><h3>WELCOME BACK</h3><div class="nm">${esc(ACC.name)}</div><div class="pv">${ACC.pid ? 'Player ID #' + esc(ACC.pid) + ' · ' : ''}${ACC.guest ? 'Ghost account' : '✔ Google'}</div><button class="ab pri" data-e="cont">▶ CONTINUE</button>${ACC.guest ? LINKBTN : ''}<button class="ab sm" data-e="out">⏏ Log out</button>${er}`;
+  else if (v === 'id') c.innerHTML = `<h3>YOUR PLAYER ID</h3><div class="nm">#${esc(ACC.pid || '—')}</div><button class="ab sm" data-e="copy">📋 Copy my ID</button>${ACC.guest ? LINKBTN : ''}<input id="ent-q" maxlength="9" inputmode="numeric" placeholder="Search a player by ID"><button class="ab pri" data-e="find" style="margin-top:8px">🔎 SEARCH</button><div class="nt" id="ent-res"></div><button class="ab sm" data-e="close">✕ Close</button>`;
+  else c.innerHTML = `<h3>${linking ? 'LINK YOUR ACCOUNT' : 'SIGN IN'}</h3><p class="nt">Your 🪙 gold, 💎 diamonds and skins are saved in the cloud with your own player ID.</p>
     <button class="ab" style="--c:#4285f4" data-e="google"><i style="background:#fff;color:#4285f4">G</i>Continue with Google</button>
-    <button class="ab" style="--c:#1877f2" data-e="facebook"><i style="background:#1877f2;color:#fff">f</i>Continue with Facebook</button>
-    <button class="ab" style="--c:#0077ff" data-e="vk"><i style="background:#0077ff;color:#fff;font-size:11px">VK</i>Continue with VK</button>
-    <div class="or">OR</div><button class="ab ghost" data-e="ghost">👻 Play as Ghost (guest)</button><p class="er" id="ent-er">${esc(errTxt || '')}</p>
-    ${ACC ? '<button class="ab sm" data-e="close">✕ Close</button>' : '<p class="nt sm">Ghost needs no account. Progress is saved only in this browser.</p><p class="nt sm">Site origin: <b>' + esc(location.origin) + '</b></p>'}`;
+    <button class="ab soon" data-e="soon"><i style="background:#1877f2;color:#fff">f</i>Facebook</button>
+    <button class="ab soon" data-e="soon"><i style="background:#0077ff;color:#fff;font-size:11px">VK</i>VK</button>
+    ${linking ? '' : '<div class="or">OR</div><button class="ab ghost" data-e="ghost">👻 Play as Ghost (guest)</button>'}${er}
+    ${ACC ? '<button class="ab sm" data-e="close">✕ Close</button>' : '<p class="nt sm">Ghost is a real account too: link Google later to keep it on any device.</p>'}`;
 }
 ent.addEventListener('mouseover', e => { if (e.target.closest && e.target.closest('.ab')) beep(900, 0.03, 'sine', 0.03); });
 E('ent-card').addEventListener('click', async e => {
   const b = e.target.closest('[data-e]'); if (!b) return; beep(500, 0.06, 'square', 0.04);
   const a = b.dataset.e;
   try {
-    if (a === 'cont') outro();
-    else if (a === 'out') logout();
+    if (a === 'cont') { view('load'); await afterLogin(false); }
+    else if (a === 'out') await logout();
     else if (a === 'link') { linking = true; view('login'); }
-    else if (a === 'back') view('login');
     else if (a === 'close') { linking = false; ACC ? outro() : view('login'); }
-    else if (a === 'ghost') enter({ provider: 'ghost', id: 'ghost', name: 'GHOST', guest: true });
-    else if (a === 'demo') { const n = (E('ent-nm').value || 'Player').trim().slice(0, 14) || 'Player'; enter({ provider, id: 'demo_' + provider + '_' + n.toLowerCase(), name: n }); }
-    else { provider = a; if (!AUTH[a === 'facebook' ? 'facebookAppId' : a === 'google' ? 'googleClientId' : 'vkAppId']) view('demo'); else await ({ google: gLogin, facebook: fbLogin, vk: vkLogin })[a](); }
-  } catch (err) { view('login', '❌ Login failed: ' + (err && err.message || err)); }
+    else if (a === 'soon') toast('Coming soon');
+    else if (a === 'retry') location.reload();
+    else if (a === 'offline') { ACC = null; pill(); outro(); }
+    else if (a === 'google') { view('load'); await gLogin(); }
+    else if (a === 'ghost') { view('load'); await ghostLogin(); }
+    else if (a === 'copy') navigator.clipboard.writeText(ACC.pid || '').then(() => toast('ID copied')).catch(() => {});
+    else if (a === 'find') {
+      const q = E('ent-q').value.trim(), out = E('ent-res');
+      if (!/^\d{9}$/.test(q)) { out.textContent = 'Enter a 9-digit ID'; return; }
+      const { fs, db } = await fbReady, s = await fs.getDoc(fs.doc(db, 'players', q));
+      out.textContent = s.exists() ? '✔ ' + s.data().name + ' · #' + q + ' · ' + String(s.data().char || '').toUpperCase() : '❌ No player with this ID';
+    }
+  } catch (err) { view(ACC && a === 'find' ? 'id' : 'login', '❌ ' + (err && (err.code || err.message) || err)); }
 });
 
-// ---------- Real providers ----------
-const loadJS = u => new Promise((ok, no) => { const s = document.createElement('script'); s.src = u; s.async = true; s.onload = ok; s.onerror = () => no(new Error('could not load SDK')); document.head.appendChild(s); });
-const jwt = t => { try { return JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return {}; } };
-const GSI = 'https://accounts.google.com/gsi/client', FBS = 'https://connect.facebook.net/en_US/sdk.js', VKS = 'https://unpkg.com/@vkid/sdk@2.6.1/dist-sdk/umd/index.js';
-function gLogin() {
-  if (!window.google) throw new Error('Google SDK is still loading, try again in 2 seconds');
-  window.google.accounts.oauth2.initTokenClient({
-    client_id: AUTH.googleClientId, scope: 'openid profile',
-    error_callback: er => view('login', '❌ Google: ' + (er.type || 'popup closed')),
-    callback: async r => {
-      if (r.error) return view('login', '❌ Google: ' + r.error);
-      const u = await (await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + r.access_token } })).json();
-      enter({ provider: 'google', id: 'g' + u.sub, name: u.name || 'Google user', pic: u.picture });
-    }
-  }).requestAccessToken();
+// ---------- Login / account logic ----------
+async function gLogin() {
+  const { au, auth } = await fbReady, prov = new au.GoogleAuthProvider();
+  try {
+    if (auth.currentUser && auth.currentUser.isAnonymous) await au.linkWithPopup(auth.currentUser, prov);   // same account, same progress
+    else await au.signInWithPopup(auth, prov);
+  } catch (e) {
+    if (e.code !== 'auth/credential-already-in-use') throw e;   // this Google account already exists: switch to it
+    await au.signInWithCredential(auth, au.GoogleAuthProvider.credentialFromError(e));
+  }
+  await afterLogin(true);
 }
-function fbLogin() {
-  if (!window.FB) throw new Error('Facebook SDK is still loading, try again in 2 seconds');
-  window.FB.login(r => {
-    if (r.authResponse) window.FB.api('/me', { fields: 'name,picture' }, u => enter({ provider: 'facebook', id: 'f' + u.id, name: u.name, pic: u.picture && u.picture.data && u.picture.data.url }));
-    else view('login', 'Facebook login cancelled (or this account is not a tester of your app).');
-  }, { scope: 'public_profile' });
+async function ghostLogin() { const { au, auth } = await fbReady; await au.signInAnonymously(auth); await afterLogin(true); }
+async function newPid(uid, nm) {
+  const { fs, db } = await fbReady;
+  for (let i = 0; i < 8; i++) {
+    const pid = String(100000000 + Math.floor(Math.random() * 900000000));
+    try { await fs.runTransaction(db, async t => { const r = fs.doc(db, 'players', pid); if ((await t.get(r)).exists()) throw new Error('taken'); t.set(r, { uid, name: nm, char: 'aymane' }); }); return pid; }
+    catch (e) { if (e.message !== 'taken') throw e; }
+  }
+  throw new Error('could not create a player ID, try again');
 }
-const vkCfg = async cv => { if (!window.VKIDSDK) await loadJS(VKS); const V = window.VKIDSDK; V.Config.init({ app: +AUTH.vkAppId, redirectUrl: location.origin + location.pathname, state: 'nb', codeVerifier: cv, scope: '' }); return V; };
-async function vkLogin() {
-  const cv = Array.from(crypto.getRandomValues(new Uint8Array(64)), b => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[b % 62]).join('');
-  sessionStorage.setItem('nb_vk', cv); (await vkCfg(cv)).Auth.login();   // VK sends the player back to this same page
+async function afterLogin(fresh) {
+  const { fs, db, auth } = await fbReady, u = auth.currentUser; if (!u) throw new Error('not signed in');
+  const nm = pname(u), ref = fs.doc(db, 'users', u.uid), d = (await fs.getDoc(ref)).data() || {};
+  const pid = d.pid || await newPid(u.uid, nm), local = rd(SAVE);
+  ACC = { id: u.uid, name: nm, pic: u.photoURL || (u.providerData[0] && u.providerData[0].photoURL) || '', guest: u.isAnonymous, provider: u.isAnonymous ? 'ghost' : 'google', pid, char: '' };
+  linking = false; wr(AK, JSON.stringify(ACC)); ssSet('nb_sess', '1');
+  if (d.save && d.save !== local) {   // the cloud save of this account wins: load it into the game (a reload is the safe way)
+    wr(SAVE, d.save); lastUp = d.save; ssSet('nb_hello', (fresh ? 'Welcome, ' : 'Welcome back, ') + nm);
+    outro(); setTimeout(() => location.reload(), 750); return;
+  }
+  await fs.setDoc(ref, { pid, name: nm, ...(d.save ? {} : { save: local || JSON.stringify(FRESH()) }), updated: fs.serverTimestamp() }, { merge: true });
+  fs.updateDoc(fs.doc(db, 'players', pid), { name: nm }).catch(() => {});
+  lastUp = local || ''; outro(fresh);
 }
-async function vkDone(qs, cv) {
-  history.replaceState(null, '', location.pathname);
-  try { const r = await (await vkCfg(cv)).Auth.exchangeCode(qs.get('code'), qs.get('device_id')); sessionStorage.removeItem('nb_vk'); enter({ provider: 'vk', id: 'vk' + r.user_id, name: 'VK #' + r.user_id }); }
-  catch (e) { view('login', '❌ VK: ' + (e && e.message || e)); }
+async function upload() {   // copy the game's save to the cloud (only when it changed)
+  const s = rd(SAVE); if (!ACC || !ACC.pid || !s || s === lastUp) return; lastUp = s;
+  try {
+    const { fs, db } = await fbReady; await fs.setDoc(fs.doc(db, 'users', ACC.id), { save: s, updated: fs.serverTimestamp() }, { merge: true });
+    const c = JSON.parse(s).char; if (c && c !== ACC.char) { ACC.char = c; await fs.updateDoc(fs.doc(db, 'players', ACC.pid), { char: c }); }
+  } catch (e) { lastUp = ''; }
 }
-
-// ---------- Account state ----------
-const SAVE = 'nb_save2';   // the game's save slot. SV lives inside another closure, so this add-on works through localStorage
-const rd = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, wr = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+setInterval(upload, 30000); addEventListener('pagehide', upload); document.addEventListener('visibilitychange', () => { if (document.hidden) upload(); });
+async function logout() {
+  if (ACC && ACC.guest && !confirm('A Ghost account can NEVER be recovered after logging out. Link Google first to keep it.\n\nLog out anyway?')) return;
+  await upload(); const { au, auth } = await fbReady; await au.signOut(auth);
+  wr(SAVE, JSON.stringify(FRESH())); ACC = null;
+  try { localStorage.removeItem(AK); sessionStorage.removeItem('nb_sess'); } catch (e) {}
+  location.reload();   // clean start for the next account
+}
 function pill() {
   const box = document.querySelector('#lb-top > div:last-child'); if (!box) return;
   let p = E('ent-pill'), o = E('ent-out');
   if (!p) {
     p = document.createElement('span'); p.id = 'ent-pill'; o = document.createElement('span'); o.id = 'ent-out';
     p.className = o.className = 'pill'; p.style.cursor = o.style.cursor = 'pointer'; o.textContent = '⏏ LOGOUT'; box.append(p, o);
-    p.onclick = () => { if (ACC && ACC.guest) { linking = true; open('login'); } };
-    o.onclick = logout;
+    p.onclick = () => { if (ACC) { linking = false; open('id', true); } };
+    o.onclick = () => logout().catch(e => toast('❌ ' + (e.message || e)));
   }
   p.style.display = o.style.display = ACC ? '' : 'none';
-  if (ACC) { p.innerHTML = `${ACC.guest ? '👻' : '👤'} ${esc(ACC.name)}${ACC.guest ? ' · 🔗 LINK' : ''}`; p.title = ACC.guest ? 'Link an account to keep your progress' : 'Signed in with ' + ACC.provider; }
+  if (ACC) { p.textContent = (ACC.guest ? '👻 ' : '👤 ') + ACC.name + (ACC.pid ? ' · #' + ACC.pid : ''); p.title = 'Player ID and search'; }
 }
-function enter(a) {
-  ACC = a; linking = false;
-  try { localStorage.setItem(AK, JSON.stringify(a)); sessionStorage.setItem('nb_sess', '1'); } catch (e) {}
-  const prof = a.guest ? null : rd(PK + a.id);
-  if (prof) {   // this account already has saved progress: load it into the game (a reload is the safe way)
-    wr(SAVE, prof); try { sessionStorage.setItem('nb_hello', 'Welcome back, ' + a.name); } catch (e) {}
-    outro(); setTimeout(() => location.reload(), 750); return;
-  }
-  outro(true);   // new account or guest: current progress stays and becomes this account's progress
-}
-function logout() {
-  if (ACC && !ACC.guest) {
-    const cur = rd(SAVE); if (cur) wr(PK + ACC.id, cur);
-    wr(SAVE, JSON.stringify(FRESH()));
-    ACC = null; try { localStorage.removeItem(AK); sessionStorage.removeItem('nb_sess'); } catch (e) {}
-    location.reload(); return;   // clean start for the next account
-  }
-  ACC = null; linking = false;
-  try { localStorage.removeItem(AK); sessionStorage.removeItem('nb_sess'); } catch (e) {}
-  pill(); open('login');
-}
-setInterval(() => { if (ACC && !ACC.guest) { const cur = rd(SAVE); if (cur) wr(PK + ACC.id, cur); } }, 2000);
 
 // ---------- Cinematic background (canvas) ----------
 const cv = E('ent-cv'), g = cv.getContext('2d');
@@ -2582,12 +2595,12 @@ function frame(now) {
 }
 
 // ---------- Open / close ----------
-function open(v) {
+function open(v, quick) {
   ent.style.display = 'block'; ent.classList.remove('out', 'run', 'on'); void ent.offsetWidth; ent.classList.add('run');
   view(v || (ACC ? 'welcome' : 'login'));
-  rs(); T0 = performance.now(); trs = []; sps = []; flashV = 1;
+  rs(); T0 = performance.now() - (quick ? 3000 : 0); trs = []; sps = []; flashV = 1;
   cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
-  clearTimeout(cardT); cardT = setTimeout(() => ent.classList.add('on'), 2300);
+  clearTimeout(cardT); cardT = setTimeout(() => ent.classList.add('on'), quick ? 50 : 2300);
   [60, 80, 110, 160, 240].forEach((f, i) => setTimeout(() => beep(f, .25, 'sawtooth', .05), i * 120));
 }
 function outro(fresh) {
@@ -2599,13 +2612,14 @@ function outro(fresh) {
 
 // ---------- Start ----------
 pill();
-if (AUTH.googleClientId) loadJS(GSI).catch(() => {});   // preload SDKs so the popup opens right on click
-if (AUTH.facebookAppId) loadJS(FBS).then(() => window.FB.init({ appId: AUTH.facebookAppId, version: 'v21.0' })).catch(() => {});
-const qs = new URLSearchParams(location.search), vcv = sessionStorage.getItem('nb_vk');
-if (vcv && qs.get('code') && qs.get('device_id')) { open('login'); vkDone(qs, vcv); }
-else if (ACC && sessionStorage.getItem('nb_sess')) {   // already signed in during this browser session: straight to the lobby
-  const h = sessionStorage.getItem('nb_hello'); if (h) { sessionStorage.removeItem('nb_hello'); setTimeout(() => toast(h), 500); }
-} else open();
+const inSess = !!(ACC && ssGet('nb_sess'));
+if (inSess) { const h = ssGet('nb_hello'); if (h) { try { sessionStorage.removeItem('nb_hello'); } catch (e) {} setTimeout(() => toast(h), 500); } }
+else open('load');
+fbReady.then(async ({ auth }) => {
+  await auth.authStateReady(); const u = auth.currentUser;
+  if (!u) { ACC = null; try { localStorage.removeItem(AK); sessionStorage.removeItem('nb_sess'); } catch (e) {} pill(); if (inSess) open('login'); else view('login'); }
+  else if (!inSess) { if (!ACC || ACC.id !== u.uid) ACC = { id: u.uid, name: pname(u), pic: u.photoURL || '', guest: u.isAnonymous, provider: u.isAnonymous ? 'ghost' : 'google', pid: '' }; view('welcome'); }
+}).catch(e => { if (!inSess) view('load', 'Could not load Firebase: ' + (e.message || e)); });
 })();
 </script>
 </body>

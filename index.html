@@ -2922,6 +2922,7 @@ fbReady.then(async ({ auth }) => {
 
 
   
+  
 <script>
 /* AYMANE ADDON v7 — PROFILE + SETTINGS (lobby & game) + HUD EDITOR + FIRE-BUTTON DRAG AIM
    Paste this block at the very END of your file, right before </body> (after the ENTRANCE script). */
@@ -3802,7 +3803,7 @@ setInterval(()=>{const bar=document.querySelector('#lb-top .lb-cur');if(!bar)ret
   if(own&&!b){b=document.createElement('span');b.id='gs-btn';b.className='pill';b.innerHTML='🎁 GIFTS';b.title='Gift Studio';b.onclick=open9;bar.prepend(b)}else if(!own&&b)b.remove()},1000);
 })();
 </script>
-  <script>
+<script>
 /* AYMANE ADDON v9 — GIFT STUDIO + GIFT REVEAL + LAYOUT FIXES · paste right before </body>, AFTER "ADDON v8" */
 (()=>{
 const $=id=>document.getElementById(id),rd=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}},wr=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};

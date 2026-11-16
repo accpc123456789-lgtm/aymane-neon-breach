@@ -2920,6 +2920,7 @@ fbReady.then(async ({ auth }) => {
 </script>
   
 
+
 <script>
 /* AYMANE ADDON v7 — PROFILE + SETTINGS (lobby & game) + HUD EDITOR + FIRE-BUTTON DRAG AIM
    Paste this block at the very END of your file, right before </body> (after the ENTRANCE script). */
@@ -3212,14 +3213,17 @@ const $=id=>document.getElementById(id),rd=(k,d)=>{try{return JSON.parse(localSt
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';'),acc=()=>rd('nb_acc',null)||{};
 const FBV='https://www.gstatic.com/firebasejs/13.3.0/',CFG={apiKey:'AIzaSyBqFE1FYjCXZsiF3OUcuQ2vIQF5wEaGLag',authDomain:'aymane-neon-breach.firebaseapp.com',projectId:'aymane-neon-breach',storageBucket:'aymane-neon-breach.firebasestorage.app',messagingSenderId:'870918511939',appId:'1:870918511939:web:dfc55f7a6808f200d863f6'};
 const fb=(async()=>{const[A,au,fs]=await Promise.all([import(FBV+'firebase-app.js'),import(FBV+'firebase-auth.js'),import(FBV+'firebase-firestore.js')]);const app=A.getApps().length?A.getApp():A.initializeApp(CFG),auth=au.getAuth(app);await auth.authStateReady();return{fs,db:fs.getFirestore(app),auth}})();fb.catch(()=>{});
-const RULES=`// Add inside "match /databases/{database}/documents { ... }"
-match /players/{pid} { allow read: if request.auth != null; allow update: if request.auth != null && resource.data.uid == request.auth.uid; }
-match /friendreq/{id} { allow create: if request.auth != null && request.resource.data.from == request.auth.uid;
+const RULES=`match /friendreq/{id} {
+  allow create: if request.auth != null && request.resource.data.from == request.auth.uid && request.resource.data.st == 'pending';
   allow read, delete: if request.auth != null && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
-  allow update: if request.auth != null && resource.data.to == request.auth.uid; }
-match /invites/{id} { allow create: if request.auth != null && request.resource.data.from == request.auth.uid;
+  allow update: if request.auth != null && resource.data.to == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['st']);
+}
+match /invites/{id} {
+  allow create, update: if request.auth != null && request.resource.data.from == request.auth.uid && request.resource.data.st == 'new';
   allow read, delete: if request.auth != null && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
-  allow update: if request.auth != null && resource.data.to == request.auth.uid; }`;
+  allow update: if request.auth != null && resource.data.to == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['st']);
+}`;
+const OWNER='7y05F07TyIheSQiZIxmYaH9CL8d2';   // only this account sees the gift tab (the REAL protection is your Firestore rule isOwner())
 const BN8=['#ff2fd0,#7a2cff,#00e5ff,#ff2fd0','#ff7a2f,#ff2f6a,#4a1a8a,#ff7a2f','#0a3a2a,#33ff88,#00e5ff,#0a3a2a','#2a0a5a,#b44dff,#ffe066,#2a0a5a','#2a0505,#ff3300,#ffd000,#2a0505'];
 const FR8=[['#5ef6ff','#ff2fd0'],['#ff7a2f','#ffe066'],['#66ff33','#00ffcc'],['#b44dff','#ff2fd0'],['#ffd700','#fff1a8','#ff9a2f'],['#f33','#ff3','#3f3','#3ff','#33f','#f3f']];
 const fc=i=>{const c=FR8[i]||FR8[0];return[...c,c[0]].join(',')},RK=['ROOKIE','SOLDIER','VETERAN','ELITE','MASTER','LEGEND','MYTHIC'],rk=l=>RK[Math.min(6,(l-1)/4|0)];
@@ -3238,7 +3242,7 @@ st.textContent=`
 #fr8,#vp8{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(3,1,14,.84);backdrop-filter:blur(8px);font-family:Arial;color:#fff}#fr8{z-index:8}#vp8{z-index:9}
 .fr8{display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:8px;border-radius:14px;background:linear-gradient(135deg,#ffffff12,#ffffff05);border:1px solid #ffffff1c;animation:u7 .4s both;transition:.2s}.fr8:hover{border-color:#5ef6ff;transform:translateX(4px);box-shadow:0 0 16px #0ff3}
 .fi{flex:1;min-width:0}.fi b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fi small{opacity:.75;font-size:11px}.dt{display:inline-block;width:9px;height:9px;border-radius:50%;background:#667;margin-right:6px}.dt.on{background:#5dff8a;box-shadow:0 0 10px #5dff8a}
-.row8{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.row8 .g{background:linear-gradient(135deg,#5dff8a,#00e5ff)!important;color:#001!important;border:0!important}.row8 .r{background:#ff4d6d44!important;border-color:#ff4d6d!important}
+.row8{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.row8 .g{background:linear-gradient(135deg,#5dff8a,#00e5ff)!important;color:#001!important;border:0!important}.row8 .gold{background:linear-gradient(135deg,#ffe066,#ff9a2f)!important;color:#001!important;border:0!important}.gf8{text-align:center}.gf8 .gi{font-size:58px;animation:f7 2s infinite;filter:drop-shadow(0 0 18px #fe0)}.gf8 h4{margin:4px 0;letter-spacing:.3em;color:#ffe066}.gf8 p{opacity:.7;font-size:13px;margin:4px 0 10px}.gf8 input{width:100%;margin:6px 0;padding:12px;border-radius:10px;border:1px solid #ffe066;background:#0b0f24;color:#fff;font-size:15px;text-align:center}.two2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.row8 .r{background:#ff4d6d44!important;border-color:#ff4d6d!important}
 .hb{display:flex;align-items:center;gap:14px;padding:16px 22px;background:linear-gradient(100deg,#00e5ff33,#ff2fd033,#ffe06622);background-size:200%;animation:s7 8s linear infinite}.hb .nm b{font-size:22px}
 .er8{margin:10px 0;padding:12px;border-radius:12px;background:#ff4d6d22;border:1px solid #ff4d6d;font-size:12px;line-height:1.5}.er8 pre{white-space:pre-wrap;font:11px monospace;max-height:110px;overflow:auto;background:#0008;padding:8px;border-radius:8px}
 .sr8{display:flex;gap:8px}.sr8 input{flex:1;padding:12px;border-radius:10px;border:1px solid #5ef6ff;background:#0b0f24;color:#fff;font-size:16px;text-align:center;letter-spacing:.2em}
@@ -3259,6 +3263,7 @@ document.head.appendChild(st);
 let me=null,IN=[],OUT=[],MY=[],FP={},VD={},err='',htab='fr',vpid=null,B=0,pubErr='',PT={role:null,code:'',cap:4,host:null};
 const mk=(id)=>{const e=document.createElement('div');e.id=id;document.body.appendChild(e);return e};
 const HB=mk('fr8'),VP=mk('vp8'),NT=mk('nt8'),PB=mk('pt8');
+const isAd=()=>!!(me&&me.uid===OWNER);
 const nick=()=>rd('nb_prof7',{}).nick||acc().name||'PLAYER';
 const isOn=d=>!!(d&&d.seen&&d.seen.toMillis&&Date.now()-d.seen.toMillis()<100000);
 const friends=()=>{const m={};IN.concat(OUT).filter(x=>x.st==='accepted').forEach(x=>{const o=x.from===me.uid?{uid:x.to,pid:x.toPid,name:x.toName}:{uid:x.from,pid:x.fromPid,name:x.fromName};m[o.pid]=o});return Object.values(m)};
@@ -3323,23 +3328,34 @@ function ptRender(){
 setInterval(()=>{const l=$('lb-who');if(l&&l.style.left)PB.style.left=l.style.left},500);
 
 // ---------- hub + profile viewer ----------
-const tabsH=(r,n)=>`<div class="tb">${[['fr','👥 FRIENDS ('+n+')'],['rq','📨 REQUESTS'+(r?' <span class="bd8">'+r+'</span>':'')],['se','🔎 SEARCH']].map(t=>`<button class="${htab===t[0]?'on':''}" data-x="tab" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>`;
+const tabsH=(r,n)=>`<div class="tb">${[['fr','👥 FRIENDS ('+n+')'],['rq','📨 REQUESTS'+(r?' <span class="bd8">'+r+'</span>':'')],['se','🔎 SEARCH'],...(isAd()?[['gf','🎁 GIFT']]:[])].map(t=>`<button class="${htab===t[0]?'on':''}" data-x="tab" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>`;
 const fRow=(o,i)=>{const d=FP[o.pid]||{},on=isOn(d);return `<div class="fr8" style="animation-delay:${i*.05}s">${av(d,50)}<div class="fi"><b>${esc(d.nick||o.name)}</b><small><i class="dt ${on?'on':''}"></i>${on?'Online':'Offline'} · LV ${d.lvl||1} · #${o.pid}</small></div><button data-x="vp" data-p="${o.pid}">👁</button><button data-x="inv" data-p="${o.pid}" class="${on?'g':''}">🎮 INVITE</button><button data-x="rm" data-p="${o.pid}">✕</button></div>`};
 function hubH(){
   const p=pub(),f=friends(),rq=IN.filter(x=>x.st==='pending'),out=OUT.filter(x=>x.st==='pending');let b='';
   if(!me)b='<div class="em8">🔒 Sign in with Google or Ghost to use friends.</div>';
   else if(htab==='fr')b=f.length?f.sort((a,c)=>isOn(FP[c.pid])-isOn(FP[a.pid])).map(fRow).join(''):'<div class="em8">No friends yet 👀<br>Go to <b>SEARCH</b>, type a player ID and send a request.</div>';
   else if(htab==='rq')b=(rq.length?rq.map((x,i)=>`<div class="fr8" style="animation-delay:${i*.05}s">${av(FP[x.fromPid]||{},50)}<div class="fi"><b>${esc(x.fromName)}</b><small>wants to be your friend · #${x.fromPid}</small></div><button data-x="vp" data-p="${x.fromPid}">👁</button><button class="g" data-x="ac" data-p="${x.fromPid}">✔</button><button data-x="dc" data-p="${x.fromPid}">✕</button></div>`).join(''):'<div class="em8">No incoming requests</div>')+(out.length?'<h4 style="margin:14px 0 8px;font-size:11px;letter-spacing:.3em;color:#ff2fd0">SENT</h4>'+out.map(x=>`<div class="fr8"><div class="fi"><b>${esc(x.toName)}</b><small>⏳ pending · #${x.toPid}</small></div><button data-x="cn" data-p="${x.toPid}">CANCEL</button></div>`).join(''):'');
+  else if(htab==='gf'&&isAd())b=giftH();
   else b=`<div class="sr8"><input id="q8" maxlength="9" inputmode="numeric" placeholder="PLAYER ID (9 digits)"><button class="on" data-x="find">🔎 SEARCH</button></div><div id="sr8" class="em8">Find any player by his ID, see his profile and add him.</div>`;
   const e=/permission/i.test(err)?`<div class="er8">⚠ <b>Firestore rules</b> block friends. Firebase Console → Firestore → Rules, add these, then Publish:<pre>${esc(RULES)}</pre><button data-x="rules">📋 COPY RULES</button></div>`:'';
   return `<div class="pc"><div class="hb">${av(p,64)}<div class="nm"><b>${esc(p.nick)}</b><small>MY ID <u data-x="cp">#${me?me.pid:'—'} 📋</u> · LV ${p.lvl}</small></div><span class="x" data-x="hc" style="cursor:pointer;font-size:22px">✕</span></div>${tabsH(rq.length,f.length)}<div class="bd7">${e}${b}</div></div>`}
-function rh(){if(HB.style.display==='flex'&&!(htab==='se'&&$('q8')))HB.innerHTML=hubH()}
+function rh(){if(HB.style.display==='flex'&&htab!=='se'&&htab!=='gf')HB.innerHTML=hubH()}
 const openHub=t=>{htab=t||htab;HB.innerHTML=hubH();HB.style.display='flex';me&&(publish(),friends().forEach(f=>load(f.pid).then(rh)))};
-function acts(pid){const r=rel(pid);return r==='me'?'':r==='fr'?`<button class="g" data-x="inv" data-p="${pid}">🎮 INVITE TO PARTY</button><button class="r" data-x="rm" data-p="${pid}">REMOVE FRIEND</button>`:r==='out'?`<button data-x="cn" data-p="${pid}">⏳ REQUEST SENT — CANCEL</button>`:r==='in'?`<button class="g" data-x="ac" data-p="${pid}">✔ ACCEPT</button><button class="r" data-x="dc" data-p="${pid}">✕ DECLINE</button>`:`<button class="g" data-x="add" data-p="${pid}">➕ ADD FRIEND</button>`}
+const acts=pid=>acts0(pid)+(isAd()&&pid!==me.pid?`<button class="gold" data-x="gift" data-p="${pid}">🎁 SEND GIFT</button>`:'');
+function acts0(pid){const r=rel(pid);return r==='me'?'':r==='fr'?`<button class="g" data-x="inv" data-p="${pid}">🎮 INVITE TO PARTY</button><button class="r" data-x="rm" data-p="${pid}">REMOVE FRIEND</button>`:r==='out'?`<button data-x="cn" data-p="${pid}">⏳ REQUEST SENT — CANCEL</button>`:r==='in'?`<button class="g" data-x="ac" data-p="${pid}">✔ ACCEPT</button><button class="r" data-x="dc" data-p="${pid}">✕ DECLINE</button>`:`<button class="g" data-x="add" data-p="${pid}">➕ ADD FRIEND</button>`}
 function vHTML(d,pid){
   const kd=d.d?d.k/d.d:d.k,ac=d.sh?d.hi/d.sh*100:0,hp=d.k?d.h/d.k*100:0,cards=[['KILLS',d.k],['HEADSHOTS',d.h],['K/D',kd.toFixed(2)],['ACCURACY',ac.toFixed(1)+'%'],['HEAD %',hp.toFixed(1)+'%'],['MATCHES',d.m],['BEST WAVE',d.w],['BEST SCORE',d.sc],['PLAY TIME',Math.round(d.t/60)+' min'],['DEATHS',d.d]];
   return `<div class="pc"><div class="bn" style="background-image:linear-gradient(120deg,${BN8[d.bn]||BN8[0]})"><span class="x" data-x="vc">✕</span></div><div class="hd">${av(d,112)}<div class="nm"><b>${esc(d.nick||d.name)}</b><em>${esc(d.ti||'NEWCOMER')}</em><small>PLAYER ID <u data-x="cpid" data-p="${pid}">#${pid} 📋</u> · ${isOn(d)?'🟢 ONLINE':'⚫ OFFLINE'}</small></div><div class="lv"><b>${d.lvl||1}</b><span>LEVEL</span><small>${rk(d.lvl||1)}</small></div></div><div class="bd7"><p style="margin:0 0 12px;opacity:.85">${esc(d.bio||'')}</p><div class="gr">${cards.map((c,i)=>`<div class="sc" style="--h:${i*36};animation-delay:${i*.05}s"><small>${c[0]}</small><b>${c[1]}</b></div>`).join('')}</div><div class="row8" id="va8">${acts(pid)}</div></div></div>`}
 async function showP(pid){const d=await load(pid);if(!d){note('❌ No player with this ID');return false}d.d=d.d|0;VD[pid]=d;vpid=pid;VP.innerHTML=vHTML(d,pid);VP.style.display='flex';return true}
+const giftH=()=>`<div class="gf8"><div class="gi">🎁</div><h4>ADMIN · SEND A GIFT</h4><p>Only your account sees this tab. The player gets it next time he is in the lobby.</p><input id="g-pid" maxlength="9" inputmode="numeric" placeholder="Player ID (9 digits)"><div class="two2"><input id="g-gold" inputmode="numeric" placeholder="🪙 Gold"><input id="g-dia" inputmode="numeric" placeholder="💎 Diamonds"></div><input id="g-msg" maxlength="60" placeholder="Message (optional)"><button class="gold big" data-x="gsend">🎁 SEND GIFT</button><div id="g-res" class="em8"></div></div>`;
+async function sendGift(){
+  if(!isAd())return;const o=$('g-res'),pid=$('g-pid').value.trim(),gold=Math.floor(+$('g-gold').value||0),dia=Math.floor(+$('g-dia').value||0);
+  if(!/^\d{9}$/.test(pid)){o.textContent='Enter a 9-digit ID';return}
+  if(gold<0||dia<0||(!gold&&!dia)||gold>1e6||dia>1e5){o.textContent='Amounts: 1–1,000,000 gold · 1–100,000 diamonds';return}
+  const{fs,db}=await fb,p=await fs.getDoc(fs.doc(db,'players',pid));if(!p.exists()){o.textContent='❌ No player with this ID';return}
+  const d=p.data();if(!confirm('Send '+gold+' gold + '+dia+' diamonds to '+(d.nick||d.name)+' (#'+pid+')?'))return;
+  await fs.addDoc(fs.collection(db,'gifts'),{to:d.uid,toPid:pid,gold,dia,msg:$('g-msg').value.trim().slice(0,60),from:me.uid,claimed:false,created:fs.serverTimestamp()});
+  o.textContent='✅ Gift sent to '+(d.nick||d.name)+' (#'+pid+')';note('🎁 Gift sent!')}
 async function search(){const q=$('q8').value.trim(),o=$('sr8');if(!/^\d{9}$/.test(q)){o.textContent='Enter a 9-digit ID';return}o.textContent='⏳ Searching...';if(!(await showP(q)))o.textContent='❌ No player with this ID';else o.textContent='✔ Found'}
 function ui(){const n=IN.filter(x=>x.st==='pending').length,b=$('fr-btn');if(b){const k=b.querySelector('.bd8');k.textContent=n;k.style.display=n?'':'none'}rh();if(VP.style.display==='flex'&&vpid&&$('va8'))$('va8').innerHTML=acts(vpid);ptRender()}
 async function onAct(e){
@@ -3348,6 +3364,7 @@ async function onAct(e){
     if(x==='hc')HB.style.display='none';else if(x==='vc')VP.style.display='none';
     else if(x==='tab'){htab=b.dataset.v;HB.innerHTML=hubH()}
     else if(x==='cp'||x==='cpid'){navigator.clipboard&&navigator.clipboard.writeText(p||me.pid).catch(()=>{});b.textContent='✔ COPIED'}
+    else if(x==='gsend')await sendGift();else if(x==='gift'){VP.style.display='none';htab='gf';HB.innerHTML=hubH();$('g-pid').value=p}
     else if(x==='find')await search();else if(x==='vp')await showP(p);
     else if(x==='inv')await invite(friends().find(f=>f.pid===p));
     else if(x==='add')await addF(p);else if(x==='ac')await accF(p);

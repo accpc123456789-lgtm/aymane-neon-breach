@@ -2921,6 +2921,7 @@ fbReady.then(async ({ auth }) => {
   
 
 
+
 <script>
 /* AYMANE ADDON v7 — PROFILE + SETTINGS (lobby & game) + HUD EDITOR + FIRE-BUTTON DRAG AIM
    Paste this block at the very END of your file, right before </body> (after the ENTRANCE script). */
@@ -3272,15 +3273,16 @@ const rel=pid=>!me?'no':pid===me.pid?'me':friends().some(f=>f.pid===pid)?'fr':OU
 function note(t,ms,html){const e=document.createElement('div');e.className='n8';e.innerHTML=html||esc(t);NT.appendChild(e);try{beep(900,.1,'sine',.06)}catch(x){}setTimeout(()=>e.remove(),ms||4500);return e}
 const fail=e=>{err=e.code||String(e.message||e);note(/permission/i.test(err)?'❌ Firestore rules missing → open Friends & copy the rules':'❌ '+err,6000);ui()};
 
+const BL=new Set();   // blocked uids (filled by v9)
 // ---------- public profile + presence ----------
 function pub(){const P=rd('nb_prof7',{}),s=P.s||{},xp=(s.kills|0)*10+(s.heads|0)*5+(s.waves|0)*30+(s.matches|0)*20;return{nick:nick().slice(0,14),av:P.av||'🦅',fr:P.fr|0,bn:P.bn|0,ti:P.ti||'NEWCOMER',bio:String(P.bio||'').slice(0,60),lvl:1+Math.floor(Math.sqrt(xp/40)),k:s.kills|0,h:s.heads|0,d:s.deaths|0,sh:s.shots|0,hi:s.hits|0,w:s.wave|0,sc:s.score|0,m:s.matches|0,t:Math.round(s.time||0)}}
 async function publish(){if(!me)return;try{const{fs,db}=await fb;await fs.updateDoc(fs.doc(db,'players',me.pid),Object.assign(pub(),{seen:fs.serverTimestamp()}));pubErr=''}catch(e){pubErr=e.code||'err'}}
 async function load(pid){try{const{fs,db}=await fb,s=await fs.getDoc(fs.doc(db,'players',pid));if(s.exists()){FP[pid]=s.data();return FP[pid]}}catch(e){fail(e)}return null}
 async function boot(){
   if(B)return;let K;try{K=await fb}catch(e){return}const u=K.auth.currentUser,pid=acc().pid;if(!u||!pid)return;B=1;me={uid:u.uid,pid};const{fs,db}=K,col=n=>fs.collection(db,n),Q=(n,f)=>fs.query(col(n),fs.where(f,'==',u.uid));let f1=1,f2=1;
-  fs.onSnapshot(Q('friendreq','to'),s=>{s.docChanges().forEach(c=>{const x=c.doc.data();if(!f1&&c.type==='added'&&x.st==='pending')note('👋 '+x.fromName+' sent you a friend request')});f1=0;IN=s.docs.map(d=>({id:d.id,...d.data()}));ui()},fail);
+  fs.onSnapshot(Q('friendreq','to'),s=>{s.docChanges().forEach(c=>{const x=c.doc.data();if(!f1&&c.type==='added'&&x.st==='pending')note('👋 '+x.fromName+' sent you a friend request')});f1=0;IN=s.docs.map(d=>({id:d.id,...d.data()})).filter(x=>!BL.has(x.from));ui()},fail);
   fs.onSnapshot(Q('friendreq','from'),s=>{s.docChanges().forEach(c=>{const x=c.doc.data();if(!f2&&c.type==='modified'&&x.st==='accepted')note('🎉 '+x.toName+' accepted your friend request')});f2=0;OUT=s.docs.map(d=>({id:d.id,...d.data()}));ui()},fail);
-  fs.onSnapshot(Q('invites','to'),s=>s.docChanges().forEach(c=>{const x={id:c.doc.id,...c.doc.data()};if(c.type!=='removed'&&x.st==='new'&&x.created&&x.created.toMillis&&Date.now()-x.created.toMillis()<60000)invPop(x)}),()=>{});
+  fs.onSnapshot(Q('invites','to'),s=>s.docChanges().forEach(c=>{const x={id:c.doc.id,...c.doc.data()};if(c.type!=='removed'&&x.st==='new'&&!BL.has(x.from)&&x.created&&x.created.toMillis&&Date.now()-x.created.toMillis()<120000)invPop(x)}),()=>{});
   let f3=1;fs.onSnapshot(Q('invites','from'),s=>{s.docChanges().forEach(c=>{const x=c.doc.data();if(!f3&&c.type==='modified'&&x.st==='accepted'&&x.code===PT.code)note('🎮 '+(FP[x.toPid]&&FP[x.toPid].nick||'A friend')+' joined your party')});f3=0;MY=s.docs.map(d=>({id:d.id,...d.data()}));MY.forEach(x=>x.st==='accepted'&&!FP[x.toPid]&&load(x.toPid).then(ui));ui()},()=>{});
   publish();setInterval(publish,45000);const lf=()=>friends().forEach(f=>load(f.pid).then(ui));setInterval(lf,40000);setTimeout(lf,1500);
 }
@@ -3305,7 +3307,7 @@ async function invite(f){
   if(Object.keys(partyMem()).length+1>=PT.cap){note('Party is full — switch to SQUAD for 4 players');return}
   const c=await ensureRoom();if(!c){note('❌ Could not create the room (check internet)');return}PT.role='host';PT.code=c;
   const{fs,db}=await fb;await fs.setDoc(fs.doc(db,'invites',me.uid+'_'+f.uid),{from:me.uid,fromPid:me.pid,fromName:nick(),to:f.uid,toPid:f.pid,code:c,st:'new',created:fs.serverTimestamp()});note('📨 Invite sent to '+f.name);ptRender()}
-const partyMem=()=>{const m={};MY.filter(x=>x.st==='accepted'&&x.code===PT.code).forEach(x=>m[x.toPid]=1);return m};
+const partyMem=()=>{const m={};MY.filter(x=>x.st==='accepted'&&x.code===PT.code&&(!FP[x.toPid]||!FP[x.toPid].seen||isOn(FP[x.toPid]))).forEach(x=>m[x.toPid]=1);return m};
 function invPop(x){
   if(!document.body.classList.contains('inlobby'))return;
   const e=note('',25000,`<b>🎮 ${esc(x.fromName)}</b> invited you to play together<u><i></i></u><div class="row8" style="margin-top:8px"><button data-a="y" class="g">✔ JOIN</button><button data-a="n">✕ DECLINE</button></div>`);
@@ -3316,8 +3318,8 @@ async function joinParty(x){
   note('⏳ Joining '+x.fromName+'...');nav('modes');await w(250);if(P8().querySelector('[data-a="leave"]')){clk('[data-a="leave"]');await w(300)}
   clk('[data-a="net"][data-v="on"]');await w(250);const i=$('net-code');if(!i){note('❌ Network panel not ready');return}i.value=x.code;i.dispatchEvent(new Event('input',{bubbles:true}));clk('[data-a="join"]');
   let ok=false;for(let k=0;k<40&&!ok;k++){await w(250);ok=/Connected to room/.test(P8().textContent)}nav('home');
-  if(ok){PT={role:'guest',code:x.code,cap:4,host:{pid:x.fromPid,name:x.fromName}};load(x.fromPid).then(ptRender);note('✅ You joined '+x.fromName+'\'s party — wait for START');ptRender()}else note('❌ Could not join (room closed?)')}
-async function leaveParty(){nav('modes');await w(200);clk('[data-a="leave"]');await w(200);nav('home');PT={role:null,code:'',cap:PT.cap,host:null};ptRender()}
+  if(ok){PT={role:'guest',code:x.code,cap:4,inv:x.id,host:{pid:x.fromPid,name:x.fromName}};load(x.fromPid).then(ptRender);note('✅ You joined '+x.fromName+'\'s party — wait for START');ptRender()}else note('❌ Could not join (room closed?)')}
+async function leaveParty(){if(PT.role==='guest'&&PT.inv){try{const{fs,db}=await fb;await fs.updateDoc(fs.doc(db,'invites',PT.inv),{st:'left'})}catch(e){}}nav('modes');await w(200);clk('[data-a="leave"]');await w(200);nav('home');PT={role:null,code:'',cap:PT.cap,host:null};ptRender()}
 new MutationObserver(()=>{const b=$('lb-go');if(b&&/ENTER GAME/.test(b.textContent))setTimeout(()=>{/ENTER GAME/.test(b.textContent)&&b.click()},900)}).observe($('lb-go'),{childList:true,characterData:true,subtree:true});
 function ptRender(){
   const L=[{...pub(),me:1}];
@@ -3328,20 +3330,21 @@ function ptRender(){
 setInterval(()=>{const l=$('lb-who');if(l&&l.style.left)PB.style.left=l.style.left},500);
 
 // ---------- hub + profile viewer ----------
-const tabsH=(r,n)=>`<div class="tb">${[['fr','👥 FRIENDS ('+n+')'],['rq','📨 REQUESTS'+(r?' <span class="bd8">'+r+'</span>':'')],['se','🔎 SEARCH'],...(isAd()?[['gf','🎁 GIFT']]:[])].map(t=>`<button class="${htab===t[0]?'on':''}" data-x="tab" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>`;
-const fRow=(o,i)=>{const d=FP[o.pid]||{},on=isOn(d);return `<div class="fr8" style="animation-delay:${i*.05}s">${av(d,50)}<div class="fi"><b>${esc(d.nick||o.name)}</b><small><i class="dt ${on?'on':''}"></i>${on?'Online':'Offline'} · LV ${d.lvl||1} · #${o.pid}</small></div><button data-x="vp" data-p="${o.pid}">👁</button><button data-x="inv" data-p="${o.pid}" class="${on?'g':''}">🎮 INVITE</button><button data-x="rm" data-p="${o.pid}">✕</button></div>`};
+const tabsH=(r,n)=>`<div class="tb">${[['fr','👥 FRIENDS ('+n+')'],['rq','📨 REQUESTS'+(r?' <span class="bd8">'+r+'</span>':'')],['se','🔎 SEARCH'],['bl','🚫 BLOCKED'],...(isAd()?[['gf','🎁 QUICK GIFT']]:[])].map(t=>`<button class="${htab===t[0]?'on':''}" data-x="tab" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>`;
+const fRow=(o,i)=>{const d=FP[o.pid]||{},on=isOn(d);return `<div class="fr8" style="animation-delay:${i*.05}s">${av(d,50)}<div class="fi"><b>${esc(d.nick||o.name)}</b><small><i class="dt ${on?'on':''}"></i>${on?'Online':'Offline'} · LV ${d.lvl||1} · #${o.pid}</small></div><button data-x="vp" data-p="${o.pid}">👁</button><button data-x="chat" data-p="${o.pid}">💬<i class="ub9" data-u="${o.pid}"></i></button><button data-x="inv" data-p="${o.pid}" class="${on?'g':''}">🎮 INVITE</button><button data-x="rm" data-p="${o.pid}">✕</button><button data-x="blk" data-p="${o.pid}" title="Block">🚫</button></div>`};
 function hubH(){
   const p=pub(),f=friends(),rq=IN.filter(x=>x.st==='pending'),out=OUT.filter(x=>x.st==='pending');let b='';
   if(!me)b='<div class="em8">🔒 Sign in with Google or Ghost to use friends.</div>';
   else if(htab==='fr')b=f.length?f.sort((a,c)=>isOn(FP[c.pid])-isOn(FP[a.pid])).map(fRow).join(''):'<div class="em8">No friends yet 👀<br>Go to <b>SEARCH</b>, type a player ID and send a request.</div>';
   else if(htab==='rq')b=(rq.length?rq.map((x,i)=>`<div class="fr8" style="animation-delay:${i*.05}s">${av(FP[x.fromPid]||{},50)}<div class="fi"><b>${esc(x.fromName)}</b><small>wants to be your friend · #${x.fromPid}</small></div><button data-x="vp" data-p="${x.fromPid}">👁</button><button class="g" data-x="ac" data-p="${x.fromPid}">✔</button><button data-x="dc" data-p="${x.fromPid}">✕</button></div>`).join(''):'<div class="em8">No incoming requests</div>')+(out.length?'<h4 style="margin:14px 0 8px;font-size:11px;letter-spacing:.3em;color:#ff2fd0">SENT</h4>'+out.map(x=>`<div class="fr8"><div class="fi"><b>${esc(x.toName)}</b><small>⏳ pending · #${x.toPid}</small></div><button data-x="cn" data-p="${x.toPid}">CANCEL</button></div>`).join(''):'');
+  else if(htab==='bl')b=window.NB9?NB9.blH():'';
   else if(htab==='gf'&&isAd())b=giftH();
   else b=`<div class="sr8"><input id="q8" maxlength="9" inputmode="numeric" placeholder="PLAYER ID (9 digits)"><button class="on" data-x="find">🔎 SEARCH</button></div><div id="sr8" class="em8">Find any player by his ID, see his profile and add him.</div>`;
   const e=/permission/i.test(err)?`<div class="er8">⚠ <b>Firestore rules</b> block friends. Firebase Console → Firestore → Rules, add these, then Publish:<pre>${esc(RULES)}</pre><button data-x="rules">📋 COPY RULES</button></div>`:'';
   return `<div class="pc"><div class="hb">${av(p,64)}<div class="nm"><b>${esc(p.nick)}</b><small>MY ID <u data-x="cp">#${me?me.pid:'—'} 📋</u> · LV ${p.lvl}</small></div><span class="x" data-x="hc" style="cursor:pointer;font-size:22px">✕</span></div>${tabsH(rq.length,f.length)}<div class="bd7">${e}${b}</div></div>`}
 function rh(){if(HB.style.display==='flex'&&htab!=='se'&&htab!=='gf')HB.innerHTML=hubH()}
 const openHub=t=>{htab=t||htab;HB.innerHTML=hubH();HB.style.display='flex';me&&(publish(),friends().forEach(f=>load(f.pid).then(rh)))};
-const acts=pid=>acts0(pid)+(isAd()&&pid!==me.pid?`<button class="gold" data-x="gift" data-p="${pid}">🎁 SEND GIFT</button>`:'');
+const acts=pid=>acts0(pid)+(pid!==me.pid&&rel(pid)==='fr'?`<button data-x="chat" data-p="${pid}">💬 CHAT</button>`:'')+(pid!==me.pid?`<button class="r" data-x="blk" data-p="${pid}">🚫 BLOCK</button>`:'')+(isAd()&&pid!==me.pid?`<button class="gold" data-x="adm" data-p="${pid}">🛠 ADMIN</button>`:'');
 function acts0(pid){const r=rel(pid);return r==='me'?'':r==='fr'?`<button class="g" data-x="inv" data-p="${pid}">🎮 INVITE TO PARTY</button><button class="r" data-x="rm" data-p="${pid}">REMOVE FRIEND</button>`:r==='out'?`<button data-x="cn" data-p="${pid}">⏳ REQUEST SENT — CANCEL</button>`:r==='in'?`<button class="g" data-x="ac" data-p="${pid}">✔ ACCEPT</button><button class="r" data-x="dc" data-p="${pid}">✕ DECLINE</button>`:`<button class="g" data-x="add" data-p="${pid}">➕ ADD FRIEND</button>`}
 function vHTML(d,pid){
   const kd=d.d?d.k/d.d:d.k,ac=d.sh?d.hi/d.sh*100:0,hp=d.k?d.h/d.k*100:0,cards=[['KILLS',d.k],['HEADSHOTS',d.h],['K/D',kd.toFixed(2)],['ACCURACY',ac.toFixed(1)+'%'],['HEAD %',hp.toFixed(1)+'%'],['MATCHES',d.m],['BEST WAVE',d.w],['BEST SCORE',d.sc],['PLAY TIME',Math.round(d.t/60)+' min'],['DEATHS',d.d]];
@@ -3383,190 +3386,237 @@ setInterval(()=>{
   const p=$('ent-pill');if(p&&!p._b8){p._b8=1;p.onclick=()=>openHub('fr');p.title='My ID · Friends · Search'}
   $('fr-btn').style.display=acc().pid?'':'none';
 },1000);
+window.NB8={get me(){return me},fb,FP,VD,BL,HB,VP,load,note,esc,av,rd,isAd,isOn,friends:()=>me?friends():[],showP,delF,ui,openHub,OWNER};
 ptRender();
 })();
 </script>
-  <script>
-/* AYMANE ADDON v9 — GIFT STUDIO + GIFT REVEAL + LAYOUT FIXES · paste right before </body>, AFTER "ADDON v8" */
+<script>
+/* AYMANE ADDON v9 — INBOX (messages + gifts) + ADMIN CONSOLE + BAN + FRIEND CHAT + BLOCK + LEADERBOARD + DAILY STREAK (needs v7 + v8 before it) */
 (()=>{
-const $=id=>document.getElementById(id),rd=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}},wr=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-const raw=k=>{try{return localStorage.getItem(k)}catch(e){return null}},put=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
-const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';'),acc=()=>rd('nb_acc',null)||{};
-const OWNER='7y05F07TyIheSQiZIxmYaH9CL8d2',FBV='https://www.gstatic.com/firebasejs/13.3.0/';
-const CFG={apiKey:'AIzaSyBqFE1FYjCXZsiF3OUcuQ2vIQF5wEaGLag',authDomain:'aymane-neon-breach.firebaseapp.com',projectId:'aymane-neon-breach',storageBucket:'aymane-neon-breach.firebasestorage.app',messagingSenderId:'870918511939',appId:'1:870918511939:web:dfc55f7a6808f200d863f6'};
-const fb=(async()=>{const[A,au,fs]=await Promise.all([import(FBV+'firebase-app.js'),import(FBV+'firebase-auth.js'),import(FBV+'firebase-firestore.js')]);const app=A.getApps().length?A.getApp():A.initializeApp(CFG),auth=au.getAuth(app);await auth.authStateReady();return{fs,db:fs.getFirestore(app),auth}})();fb.catch(()=>{});
-
-//PURE-START
-const CHIDS=['nova','ghost','cyber','king'],WSIDS=['blaze','toxic','royal','dia','gold'];
-function applyGifts(sv,items){   // adds gifts to a save object; every gift id is stored inside the save, so nothing is ever applied twice
-  const got={gold:0,dia:0,chars:[],wsk:[],msgs:[],n:0};
-  sv.gifts=Array.isArray(sv.gifts)?sv.gifts:[];sv.chars=Array.isArray(sv.chars)?sv.chars:['aymane'];sv.wsk=Array.isArray(sv.wsk)?sv.wsk:['default'];
-  for(const x of items){
-    if(sv.gifts.includes(x.id))continue;
-    got.gold+=Math.max(0,Math.min(1e6,x.gold|0));got.dia+=Math.max(0,Math.min(1e5,x.dia|0));
-    for(const c of x.chars||[])if(CHIDS.includes(c)&&!sv.chars.includes(c)&&!got.chars.includes(c))got.chars.push(c);
-    for(const s of x.wsk||[])if(WSIDS.includes(s)&&!sv.wsk.includes(s)&&!got.wsk.includes(s))got.wsk.push(s);
-    if(x.msg)got.msgs.push(String(x.msg).slice(0,60));
-    sv.gifts.push(x.id);got.n++;
-  }
-  if(got.n){sv.gold=(+sv.gold||0)+got.gold;sv.dia=(+sv.dia||0)+got.dia;sv.chars.push(...got.chars);sv.wsk.push(...got.wsk);sv.gifts=sv.gifts.slice(-300)}
-  return got;
+const N=window.NB8;if(!N)return;
+const $=id=>document.getElementById(id),{esc,rd,av,fb,FP,BL,load,note}=N,w=ms=>new Promise(r=>setTimeout(r,ms));
+const SAVE='nb_save2',day=o=>new Date(Date.now()+(o||0)*864e5).toISOString().slice(0,10),inLobby=()=>document.body.classList.contains('inlobby');
+const HEROES={nova:'NOVA',ghost:'GHOST',cyber:'CYBER DRAGON',king:'GOLDEN KING'},SKINS={blaze:'BLAZE',toxic:'TOXIC',royal:'ROYAL',dia:'DIAMOND',gold:'GOLD PLATED'};
+const KC={gift:['🎁','#ffe066'],msg:['✉️','#5ef6ff'],warn:['⚠️','#ff4d6d'],news:['📢','#ff2fd0']};
+const REW=[{gold:100},{gold:150},{dia:5},{gold:250},{dia:10},{gold:400},{gold:500,dia:20}];
+const BD=[['1 hour',36e5],['1 day',864e5],['7 days',6048e5],['30 days',2592e6],['Permanent',0]];
+const RULES9=`match /mail/{id} {
+  allow create: if isOwner() && request.resource.data.from == request.auth.uid;
+  allow read, delete: if request.auth != null && (resource.data.to == request.auth.uid || isOwner());
+  allow update: if request.auth != null && resource.data.to == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimed','read','claimedAt']);
 }
-function buildGift(G){
-  const gold=Math.max(0,Math.min(1e6,Math.floor(+G.gold||0))),dia=Math.max(0,Math.min(1e5,Math.floor(+G.dia||0)));
-  const chars=(G.chars||[]).filter(c=>CHIDS.includes(c)),wsk=(G.wsk||[]).filter(s=>WSIDS.includes(s));
-  if(!gold&&!dia&&!chars.length&&!wsk.length)return{ok:0,err:'Pick at least one item'};
-  return{ok:1,data:{gold,dia,chars,wsk,msg:String(G.msg||'').slice(0,60)}};
+match /announce/{id} { allow read: if request.auth != null; allow create, update, delete: if isOwner(); }
+match /bans/{uid} { allow read: if request.auth != null && (request.auth.uid == uid || isOwner()); allow write: if isOwner(); }
+match /blocks/{id} {
+  allow create: if request.auth != null && request.resource.data.by == request.auth.uid && id == request.auth.uid + '_' + request.resource.data.uid;
+  allow read, delete: if request.auth != null && resource.data.by == request.auth.uid;
 }
-//PURE-END
-
-//CLAIM-START
-let busy=0,lastB=0;
-async function claim9(){   // receiver side: personal gifts + event gifts for everyone + one welcome gift
-  const a=acc();if(busy||!a.id||!document.body.classList.contains('inlobby'))return;busy=1;
-  try{
-    const{fs,db,auth}=await fb,u=auth.currentUser;if(!u||u.uid!==a.id)return;
-    const items=[{id:'welcome',gold:500,dia:20,msg:'🎉 Welcome gift — enjoy the game!'}];
-    const q=await fs.getDocs(fs.query(fs.collection(db,'gifts2'),fs.where('to','==',u.uid),fs.where('claimed','==',false)));
-    q.forEach(d=>items.push({...d.data(),id:d.id,ref:d.ref}));
-    if(Date.now()-lastB>6e5){lastB=Date.now();try{const b=await fs.getDocs(fs.query(fs.collection(db,'broadcasts'),fs.orderBy('created','desc'),fs.limit(3)));b.forEach(d=>{const x=d.data(),t=x.created&&x.created.toMillis?x.created.toMillis():0;if(Date.now()-t<14*864e5)items.push({...x,id:'b_'+d.id})})}catch(e){}}
-    let sv;try{sv=JSON.parse(raw('nb_save2')||'{}')}catch(e){return}
-    const got=applyGifts(sv,items);
-    if(got.n){const s=JSON.stringify(sv);put('nb_save2',s);await fs.setDoc(fs.doc(db,'users',u.uid),{save:s,updated:fs.serverTimestamp()},{merge:true});try{sessionStorage.setItem('nb_reveal',JSON.stringify(got))}catch(e){}}
-    await Promise.all(items.filter(x=>x.ref).map(x=>fs.updateDoc(x.ref,{claimed:true,claimedAt:fs.serverTimestamp()})));   // marked only AFTER the save is safe
-    if(got.n)setTimeout(()=>location.reload(),500);
-  }catch(e){}finally{busy=0}
-}
-//CLAIM-END
-setTimeout(claim9,7000);setInterval(claim9,47000);
+match /dm/{pair}/msgs/{id} {
+  allow read: if request.auth != null && request.auth.uid in pair.split('_');
+  allow create: if request.auth != null && request.auth.uid in pair.split('_') && request.resource.data.from == request.auth.uid && request.resource.data.to in pair.split('_') && request.resource.data.text.size() <= 200 && !exists(/databases/$(database)/documents/blocks/$(request.resource.data.to + '_' + request.auth.uid));
+  allow delete: if request.auth != null && resource.data.from == request.auth.uid;
+}`;
+const getSv=()=>{try{return JSON.parse(localStorage.getItem(SAVE)||'{}')}catch(e){return{}}};
+const ms=t=>t&&t.toMillis?t.toMillis():0,hm=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+const hasAtt=m=>!!(m.gold||m.dia||(m.chars&&m.chars.length)||(m.wsk&&m.wsk.length));
+const attH=m=>[m.gold?'🪙 '+m.gold:'',m.dia?'💎 '+m.dia:'',...(m.chars||[]).map(c=>'🦸 '+(HEROES[c]||c)),...(m.wsk||[]).map(c=>'🎨 '+(SKINS[c]||c))].filter(Boolean).map(t=>`<span class="at9">${t}</span>`).join('');
 
 // ---------- CSS ----------
 const st=document.createElement('style');
 st.textContent=`
-@keyframes g9f{50%{transform:translateY(-8px) rotate(6deg)}}@keyframes g9s{to{background-position:250% 0}}@keyframes g9u{from{opacity:0;transform:translateY(22px) scale(.92)}}@keyframes g9p{from{opacity:0;transform:scale(0) rotate(-40deg)}}@keyframes g9g{50%{box-shadow:0 0 34px #ffe066cc}}@keyframes g9b{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
-/* START button: bottom right, under the panel (the hero rotate buttons are free again) */
-#lb-bot{left:auto!important;right:16px!important;bottom:18px!important;width:min(450px,44vw)!important;justify-content:center}
-#lobby #lb-go{min-width:0!important;width:100%!important;padding:18px 16px!important;font-size:clamp(20px,2.2vw,28px)!important}
-@media(max-width:820px),(max-height:520px){#lb-bot{width:50vw!important}#lobby #lb-go{font-size:18px!important;padding:12px 10px!important}}
-@media(max-aspect-ratio:1/1){#lb-bot{left:92px!important;right:10px!important;width:auto!important}}
-/* friend notifications: bottom-left, they no longer cover the right panel */
-#nt8{left:14px!important;right:auto!important;top:auto!important;bottom:20px!important}
-/* top bar gift button (owner only) */
-#gs-btn{cursor:pointer;font-weight:bold;border-color:#ffe066!important;background:linear-gradient(135deg,#ff2fd0aa,#ffe06688)!important;animation:g9g 2.4s infinite}#gs-btn:hover{transform:translateY(-2px) scale(1.05)}
-/* studio */
-#gs9{position:fixed;inset:0;z-index:11;display:none;align-items:center;justify-content:center;background:rgba(3,1,14,.86);backdrop-filter:blur(8px);font-family:Arial;color:#fff}
-.gp9{width:min(860px,96vw);height:min(720px,95vh);display:flex;flex-direction:column;border-radius:22px;background:linear-gradient(160deg,#1c1360,#07061e 70%);border:1px solid #ffe06688;box-shadow:0 20px 80px #000,0 0 50px #f2f3;overflow:hidden;animation:g9u .45s both}
-.gh9{display:flex;align-items:center;gap:14px;padding:14px 20px;background:linear-gradient(100deg,#ff2fd066,#7a5cff66,#ffe06655);background-size:200%;animation:g9s 8s linear infinite}.gh9 b{display:block;font:900 22px "Arial Black",Arial;letter-spacing:.18em}.gh9 small{opacity:.85}.gh9 div{flex:1}
-.gi9{font-size:38px;animation:g9f 2.4s infinite}.cx9{font:bold 16px Arial;color:#fff;background:#0007;border:1px solid #fff4;border-radius:50%;width:36px;height:36px;cursor:pointer}
-.gb9{flex:1;overflow:auto;padding:6px 20px 14px;scrollbar-width:thin}.gb9 h4{display:flex;align-items:center;gap:10px;margin:16px 0 8px;font-size:12px;letter-spacing:.3em;color:#ffe066}.gb9 h4 i{font-style:normal;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#ff2fd0,#7a5cff);color:#fff;letter-spacing:0}
-.sg9{display:grid;grid-template-columns:1fr 1fr;gap:8px}.sg9 button,.ch9,.pk9 button,.cl9{font:bold 13px Arial;color:#fff;background:#ffffff14;border:1px solid #ffffff33;border-radius:12px;padding:10px 12px;cursor:pointer;transition:.18s;margin:0;box-shadow:none}
-.sg9 button:hover,.ch9:hover,.pk9 button:hover,.cl9:hover{border-color:#5ef6ff;box-shadow:0 0 14px #0ff6;transform:translateY(-2px)}.sg9 button.on,.ch9.on{background:linear-gradient(135deg,#00e5ffbb,#ff2fd0bb);border-color:#fff;box-shadow:0 0 16px #f2f8}
-.gb9 input{width:100%;box-sizing:border-box;margin:8px 0 2px;padding:12px;border-radius:10px;border:1px solid #5ef6ff;background:#0b0f24;color:#fff;font-size:15px;text-align:center}.gb9 .mi9{width:110px;margin:0;padding:9px;font-size:13px}
-.rc9{margin:6px 0;padding:10px;border-radius:10px;text-align:center;background:#ffffff0c;border:1px dashed #ffffff44;font-size:14px}.rc9.ok{border-color:#5dff8a;background:#5dff8a22}.rc9.bad{border-color:#ff4d6d;background:#ff4d6d22}
-.ro9{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}.ro9>label{width:30px;font-size:20px}
-.pk9{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.pk9 button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:14px 8px;background:linear-gradient(145deg,#ffe06633,#ff2fd022);border-color:#ffe06699;animation:g9u .5s both}.pk9 span{font-size:34px;animation:g9f 2.6s infinite}.pk9 b{letter-spacing:.2em}.pk9 small{opacity:.8;font-weight:normal;text-align:center}
-.gf9{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 20px;border-top:1px solid #ffffff22;background:#0007}.pv9{flex:1;min-width:200px;display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:14px;background:linear-gradient(100deg,#ffffff14,#ffffff05);border:1px solid #ffe06666}.pv9 small{display:block;opacity:.7;font-size:10px;letter-spacing:.15em}.pv9 b{display:block;font-size:14px}.gg9{font-size:34px;animation:g9f 2s infinite}
-.sd9{font:900 17px "Arial Black",Arial;letter-spacing:.14em;color:#001;border:0;border-radius:14px;padding:15px 26px;cursor:pointer;background:linear-gradient(90deg,#ffe066,#ff2fd0,#7a5cff,#ffe066);background-size:250% 100%;animation:g9s 3s linear infinite,g9b 2s infinite;box-shadow:0 0 28px #f2f9}.sd9:hover{filter:brightness(1.15)}
-#t9{position:fixed;left:50%;top:128px;transform:translate(-50%,-30px);z-index:14;padding:11px 22px;border-radius:14px;font:bold 14px Arial;color:#fff;background:linear-gradient(90deg,#ff2fd0,#7a5cff);box-shadow:0 0 26px #f2f8;opacity:0;transition:.35s;pointer-events:none}#t9.on{opacity:1;transform:translate(-50%,0)}
-/* reveal */
-#rv9{position:fixed;inset:0;z-index:13;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#2a0e5acc,#03010ef0);backdrop-filter:blur(6px);font-family:Arial;color:#fff}
-.bx9{text-align:center;padding:26px 30px;max-width:92vw;border-radius:24px;background:linear-gradient(160deg,#1c1360,#07061e);border:2px solid #ffe066;box-shadow:0 0 70px #f2f8,0 0 120px #ffe06644;animation:g9u .6s both}
-.gf9x{font-size:84px;animation:g9f 1.6s infinite,g9p .7s both}.bx9 h2{margin:4px 0 14px;font:900 clamp(20px,4vw,30px) "Arial Black",Arial;letter-spacing:.12em;background:linear-gradient(90deg,#fff,#ffe066,#ff2fd0,#fff);background-size:250%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:g9s 3s linear infinite}
-.gr9{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}.ic9{min-width:108px;padding:14px 12px;border-radius:16px;background:linear-gradient(145deg,#ffe06633,#ff2fd022);border:1px solid #ffe066aa;animation:g9p .55s both}.ic9 span{display:block;font-size:42px}.ic9 b{display:block;margin-top:4px;font:900 20px "Arial Black",Arial;color:#ffe066}.ic9 small{font-size:10px;letter-spacing:.2em;opacity:.8}
-.ms9{margin:14px 0 0;font-size:16px;font-style:italic;color:#5ef6ff}.bx9>button{margin-top:18px;font:900 16px "Arial Black",Arial;letter-spacing:.14em;color:#001;border:0;border-radius:14px;padding:13px 30px;cursor:pointer;background:linear-gradient(90deg,#5ef6ff,#ff2fd0);box-shadow:0 0 24px #0ffa}
-#cf9{position:fixed;inset:0;z-index:15;pointer-events:none}
+@keyframes gl9{0%,100%{transform:translate(0)}20%{transform:translate(-3px,1px)}40%{transform:translate(3px,-2px)}60%{transform:translate(-2px,-1px)}}@keyframes pop9{from{opacity:0;transform:scale(.6)}}@keyframes sc9{to{background-position:0 40px}}
+.m9{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(3,1,14,.84);backdrop-filter:blur(8px);font-family:Arial;color:#fff;z-index:10}#vp8{z-index:11!important}
+.pc.sm{width:min(470px,96vw)}
+.hl9{display:flex;align-items:center;gap:12px;padding:16px 22px;background:linear-gradient(100deg,var(--a,#00e5ff33),#ff2fd033,#ffe06622);background-size:200%;animation:s7 8s linear infinite}.hl9 b{font:900 22px "Arial Black",Arial;letter-spacing:.12em}.hl9 small{display:block;opacity:.75;margin-top:2px}.hl9 .x{margin-left:auto;cursor:pointer;font-size:22px}
+#fr-btn~.pb9{cursor:pointer;position:relative;font-weight:bold;font-size:16px;padding:6px 12px}.pb9:hover{transform:translateY(-2px) scale(1.06);box-shadow:0 0 22px #ffe06688}
+.mk9{display:flex;gap:12px;align-items:flex-start;padding:12px;margin-bottom:10px;border-radius:14px;background:linear-gradient(135deg,#ffffff12,#ffffff05);border:1px solid #ffffff1c;border-left:5px solid var(--c);animation:u7 .45s both;transition:.2s}.mk9:hover{transform:translateX(4px);box-shadow:0 0 18px var(--c)}
+.mk9.un{background:linear-gradient(135deg,color-mix(in srgb,var(--c) 22%,transparent),#ffffff06);box-shadow:0 0 14px color-mix(in srgb,var(--c) 40%,transparent)}
+.mk9 .ic{font-size:30px;animation:f7 2.5s infinite}.mk9>div{flex:1;min-width:0}.mk9 b{font-size:15px}.mk9 p{margin:4px 0 6px;font-size:13px;opacity:.88;line-height:1.5;white-space:pre-wrap;word-break:break-word}.mk9 small{opacity:.55;font-size:10px}
+.at9{display:inline-block;margin:2px 4px 2px 0;padding:3px 10px;border-radius:12px;background:#ffe06622;border:1px solid #ffe06688;color:#ffe066;font:bold 12px Arial}
+.mk9 .row8{margin-top:8px}
+.st9{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:8px 0 12px}.rw9{position:relative;text-align:center;padding:8px 2px;border-radius:12px;background:#ffffff0c;border:1px solid #ffffff22;font-size:11px;animation:pop9 .4s both}.rw9 small{display:block;opacity:.6;font-size:9px;letter-spacing:.1em}.rw9 b{display:block;margin-top:4px;font-size:12px}.rw9.dn{background:linear-gradient(135deg,#5dff8a33,#00e5ff22);border-color:#5dff8a}.rw9.dn i{position:absolute;right:3px;top:1px;font-style:normal;color:#5dff8a}.rw9.cur{border-color:#ffe066;background:linear-gradient(135deg,#ffe06633,#ff2fd033);animation:pop9 .4s both,p7 1.5s infinite;--k:#ffe066}
+.ub9{background:#ff3355;border-radius:9px;min-width:16px;padding:0 4px;margin-left:4px;font:bold 10px Arial;font-style:normal}.ub9:empty{display:none}
+#ch9 .pc{display:flex;flex-direction:column;height:min(560px,92vh)}#cm9{flex:1;overflow:auto;padding:12px 16px;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin}
+.b9{max-width:78%;padding:8px 12px;border-radius:14px 14px 14px 4px;background:#ffffff18;font-size:14px;word-break:break-word;align-self:flex-start}.b9.me{align-self:flex-end;border-radius:14px 14px 4px 14px;background:linear-gradient(135deg,#00e5ffaa,#7a5cffaa)}.b9.new{animation:pop9 .3s both}.b9 small{display:block;font-size:9px;opacity:.6;margin-top:2px;text-align:right}
+.qk9{display:flex;gap:6px;flex-wrap:wrap;padding:6px 16px}.qk9 button{padding:5px 10px!important;font-size:12px!important}
+.in9{display:flex;gap:8px;padding:10px 16px 14px;border-top:1px solid #ffffff18}.in9 input{flex:1;padding:11px;border-radius:10px;border:1px solid #5ef6ff;background:#0b0f24;color:#fff;font-size:14px}
+.lbr9{display:flex;align-items:center;gap:12px;padding:8px 12px;margin-bottom:6px;border-radius:12px;background:#ffffff0c;border:1px solid #ffffff18;cursor:pointer;animation:u7 .4s both;transition:.2s}.lbr9:hover{transform:translateX(5px);border-color:#5ef6ff}.lbr9.me{border-color:#ffe066;background:#ffe06618}.lbr9 .rk{width:34px;text-align:center;font:900 18px "Arial Black",Arial}.lbr9 .v{margin-left:auto;font:900 18px "Arial Black",Arial;color:#ffe066}
+.ad9 input,.ad9 textarea,.ad9 select{width:100%;box-sizing:border-box;margin:5px 0;padding:11px;border-radius:10px;border:1px solid #ffe066;background:#0b0f24;color:#fff;font-size:14px;font-family:Arial}.ad9 textarea{height:90px;resize:vertical}.ad9 .big{margin-top:8px!important}.ad9 .r{background:linear-gradient(135deg,#ff4d6d,#a01030)!important;color:#fff!important}
+.ch9{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.ch9 button{border-color:var(--c)!important}.ch9 button.on{background:var(--c)!important;color:#001!important}
+.h9{margin:14px 0 6px;font-size:12px;letter-spacing:.3em;color:#ff2fd0}.sw9{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13px}.sw9 input{width:auto!important;margin:0!important}
+#bn9{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;text-align:center;background:radial-gradient(circle,#3a0010,#0a0005 70%);color:#fff;font-family:Arial;padding:20px}
+#bn9::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(#0000 0 3px,#ff00402a 3px 4px);animation:sc9 1s linear infinite;pointer-events:none}
+#bn9 h1{margin:0;font:900 clamp(30px,7vw,64px) "Arial Black",Arial;letter-spacing:.1em;color:#ff4d6d;text-shadow:0 0 30px #f03,3px 0 #0ff,-3px 0 #f0f;animation:gl9 1.4s infinite}#bn9 p{max-width:520px;opacity:.9;line-height:1.6;font-size:16px}#bn9 button{margin-top:14px;font:bold 15px Arial;padding:12px 26px;border-radius:12px;border:1px solid #ff4d6d;background:#ff4d6d33;color:#fff;cursor:pointer;position:relative}
 `;
 document.head.appendChild(st);
 
-// ---------- helpers ----------
-const T9=document.createElement('div');T9.id='t9';document.body.appendChild(T9);let tt;
-const t9=m=>{T9.textContent=m;T9.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>T9.classList.remove('on'),3400)};
-const snd=()=>[523,659,784,1047].forEach((f,i)=>setTimeout(()=>{try{beep(f,.14,'triangle',.07)}catch(e){}},i*90));
-function confetti(){const c=document.createElement('canvas');c.id='cf9';c.width=innerWidth;c.height=innerHeight;document.body.appendChild(c);const g=c.getContext('2d'),P=[],C=['#5ef6ff','#ff2fd0','#ffe066','#66ff88','#ffffff','#ff7a2f'];
-  for(let i=0;i<170;i++)P.push({x:innerWidth/2,y:innerHeight*.55,vx:(Math.random()-.5)*16,vy:-Math.random()*17-4,s:5+Math.random()*7,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:C[i%6]});
-  let t=0;(function f(){t++;g.clearRect(0,0,c.width,c.height);P.forEach(p=>{p.vy+=.34;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;g.save();g.translate(p.x,p.y);g.rotate(p.r);g.fillStyle=p.c;g.globalAlpha=Math.max(0,1-t/180);g.fillRect(-p.s/2,-p.s/3,p.s,p.s*.6);g.restore()});if(t<180)requestAnimationFrame(f);else c.remove()})()}
+// ---------- state ----------
+let U=null,MAIL=[],ANN=[],BLK=[],BAN=null,B9=0,CP=null,CHD={},FW={},busy=0;const adjTried=new Set();
+const mk=id=>{const e=document.createElement('div');e.id=id;e.className='m9';document.body.appendChild(e);e.addEventListener('keydown',x=>x.stopPropagation());e.addEventListener('click',ev=>{if(ev.target===e){e.style.display='none';return}act9(ev)});return e};
+const INB=mk('in9'),ADM=mk('ad9'),LBM=mk('lb9'),CHM=mk('ch9');
+[N.HB,N.VP].forEach(m=>m.addEventListener('click',e=>act9(e)));
+const BO=document.createElement('div');BO.id='bn9';document.body.appendChild(BO);
 
-// ---------- friend notifications: remove duplicates (the rules warning shows only once a minute) ----------
-let rulesT=0;const nt=$('nt8');
-if(nt)new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType!==1)return;const x=n.textContent;
-  if(/Firestore rules/.test(x)){if(Date.now()-rulesT<6e4)n.remove();else rulesT=Date.now()}
-  else[...nt.children].forEach(c=>{if(c!==n&&c.textContent===x)n.remove()})}))).observe(nt,{childList:true});
+async function boot9(){
+  if(B9||!N.me)return;B9=1;U=N.me;const{fs,db}=await fb,col=n=>fs.collection(db,n),eq=(n,f)=>fs.query(col(n),fs.where(f,'==',U.uid));let f1=1,f2=1;
+  fs.onSnapshot(eq('mail','to'),s=>{if(!f1)s.docChanges().forEach(c=>{const m=c.doc.data();if(c.type==='added'&&m.kind!=='adj'&&!m.read&&!m.claimed)note('📬 New message: '+(m.title||'Message'))});f1=0;MAIL=s.docs.map(d=>({id:d.id,src:'mail',...d.data()}));autoAdj();ui9()},()=>{});
+  fs.onSnapshot(col('announce'),s=>{if(!f2)s.docChanges().forEach(c=>{if(c.type==='added')note('📢 '+(c.doc.data().title||'Announcement'))});f2=0;ANN=s.docs.map(d=>({id:d.id,src:'ann',...d.data()}));ui9()},()=>{});
+  fs.onSnapshot(eq('blocks','by'),s=>{BLK=s.docs.map(d=>({id:d.id,...d.data()}));BL.clear();BLK.forEach(b=>BL.add(b.uid));ui9()},()=>{});
+  fs.onSnapshot(fs.doc(db,'bans',U.uid),s=>{BAN=s.exists()?s.data():null;chkBan()},()=>{});
+  setInterval(chkBan,1000);setInterval(watchF,3000);watchF();
+}
+setInterval(boot9,1500);boot9();
 
-// ---------- reveal popup ----------
-const CH=[['nova','NOVA','🧑‍🎤'],['ghost','GHOST','🥷'],['cyber','CYBER DRAGON','🐉'],['king','GOLDEN KING','👑']],WS=[['blaze','BLAZE','🔥'],['toxic','TOXIC','☣️'],['royal','ROYAL','💜'],['dia','DIAMOND','💎'],['gold','GOLD PLATED','🏆']],NM={};CH.concat(WS).forEach(x=>NM[x[0]]=x);
-function reveal(g){
-  const it=[];if(g.gold)it.push(['🪙','+'+g.gold,'GOLD']);if(g.dia)it.push(['💎','+'+g.dia,'DIAMONDS']);(g.chars||[]).forEach(c=>NM[c]&&it.push([NM[c][2],NM[c][1],'NEW HERO']));(g.wsk||[]).forEach(s=>NM[s]&&it.push([NM[s][2],NM[s][1],'NEW WEAPON SKIN']));
-  const o=document.createElement('div');o.id='rv9';
-  o.innerHTML=`<div class="bx9"><div class="gf9x">🎁</div><h2>YOU RECEIVED A GIFT!</h2><div class="gr9">${it.map((x,i)=>`<div class="ic9" style="animation-delay:${.35+i*.16}s"><span>${x[0]}</span><b>${esc(x[1])}</b><small>${x[2]}</small></div>`).join('')}</div>${(g.msgs||[]).slice(0,2).map(m=>`<p class="ms9">“${esc(m)}”</p>`).join('')}<button>✨ AWESOME!</button></div>`;
-  document.body.appendChild(o);confetti();snd();o.onclick=e=>{if(e.target===o||e.target.tagName==='BUTTON')o.remove()};
+// ---------- ban lock screen ----------
+const banned=()=>!!(BAN&&(!BAN.until||Date.now()<BAN.until));
+function chkBan(){
+  const on=banned();if(!on){if(BO.style.display!=='none')BO.style.display='none';return}
+  if(BO.style.display!=='flex'){BO.style.display='flex';BO.innerHTML=`<h1>ACCOUNT SUSPENDED</h1><p style="margin-top:18px">${esc(BAN.reason||'You broke the rules of the game.')}</p><p id="bn9t" style="font-size:20px;color:#ffe066"></p><button data-x="bout">⏏ LOG OUT</button>`;BO.querySelector('button').onclick=()=>{const o=$('ent-out');o&&o.click()}}
+  const t=$('bn9t');if(t){const l=BAN.until-Date.now(),h=Math.floor(l/36e5),m=Math.floor(l%36e5/6e4);t.textContent=BAN.until?'Ends in '+(h>=24?Math.floor(h/24)+'d '+h%24+'h':h+'h '+m+'m'):'This suspension is permanent.'}
+  try{paused=true;mouseDown=false}catch(e){}
 }
-try{const r=sessionStorage.getItem('nb_reveal');if(r){sessionStorage.removeItem('nb_reveal');setTimeout(()=>reveal(JSON.parse(r)),1700)}}catch(e){}
+addEventListener('keydown',e=>{if(banned())e.stopImmediatePropagation()},true);
 
-// ---------- GIFT STUDIO (owner only) ----------
-const PK=[['🎉','STARTER',{gold:500,dia:10}],['🔥','PRO',{gold:2500,dia:50,wsk:['blaze']}],['👑','LEGEND',{gold:10000,dia:200,chars:['king'],wsk:['gold']}]];
-const MS=['🎉 A gift for you!','🏆 You earned it!','❤️ Thanks for playing!','🔥 Special event reward!','🌟 Welcome to the family!'],GOLD=[100,500,1000,5000,20000],DIA=[5,10,50,100,500];
-const G={to:'one',pid:'',lk:'',rc:null,gold:0,dia:0,chars:[],wsk:[],msg:MS[0]};
-const lbl=o=>[o.gold&&o.gold+'🪙',o.dia&&o.dia+'💎',(o.chars||[]).map(c=>NM[c][1]).join(', '),(o.wsk||[]).map(s=>NM[s][1]).join(', ')].filter(Boolean).join(' · ')||'— nothing yet —';
-const chip=(on,at,tx)=>`<button class="ch9 ${on?'on':''}" ${at}>${tx}</button>`,tg=(a,v)=>a.includes(v)?a.filter(x=>x!==v):[...a,v];
-function gsH(){
-  const rec=rd('nb_gs9r',[]);
-  return `<div class="gp9"><div class="gh9"><span class="gi9">🎁</span><div><b>GIFT STUDIO</b><small>Make someone's day — gold, diamonds, heroes & skins</small></div><button class="cx9" data-g="close">✕</button></div><div class="gb9">
-<h4><i>1</i> WHO GETS IT?</h4><div class="sg9"><button class="${G.to==='one'?'on':''}" data-g="to" data-v="one">👤 A PLAYER</button><button class="${G.to==='all'?'on':''}" data-g="to" data-v="all">🌍 EVERYONE</button></div>
-${G.to==='one'?`<input id="g9pid" maxlength="9" inputmode="numeric" placeholder="PLAYER ID (9 digits)" value="${esc(G.pid)}"><div id="rc9" class="rc9"></div>${rec.length?`<div class="ro9">${rec.map(r=>chip(0,'data-g="rec" data-v="'+esc(r.pid)+'"',esc(r.nick)+' #'+esc(r.pid))).join('')}</div>`:''}`:'<div class="rc9 ok">🌍 Every player gets it next time he enters the lobby (events, weekends, thank-you gifts...)</div>'}
-<h4><i>2</i> QUICK PACKS</h4><div class="pk9">${PK.map((p,i)=>`<button data-g="pack" data-v="${i}" style="animation-delay:${i*.08}s"><span>${p[0]}</span><b>${p[1]}</b><small>${lbl(p[2])}</small></button>`).join('')}</div>
-<h4><i>3</i> OR BUILD YOUR OWN</h4>
-<div class="ro9"><label>🪙</label>${GOLD.map(n=>chip(G.gold===n,'data-g="gold" data-v="'+n+'"','+'+n)).join('')}<input id="g9gold" class="mi9" inputmode="numeric" placeholder="custom" value="${GOLD.includes(G.gold)||!G.gold?'':G.gold}"></div>
-<div class="ro9"><label>💎</label>${DIA.map(n=>chip(G.dia===n,'data-g="dia" data-v="'+n+'"','+'+n)).join('')}<input id="g9dia" class="mi9" inputmode="numeric" placeholder="custom" value="${DIA.includes(G.dia)||!G.dia?'':G.dia}"></div>
-<div class="ro9"><label>🧑‍🚀</label>${CH.map(c=>chip(G.chars.includes(c[0]),'data-g="hero" data-v="'+c[0]+'"',c[2]+' '+c[1])).join('')}</div>
-<div class="ro9"><label>🎨</label>${WS.map(s=>chip(G.wsk.includes(s[0]),'data-g="skin" data-v="'+s[0]+'"',s[2]+' '+s[1])).join('')}</div>
-<h4><i>4</i> A KIND MESSAGE</h4><div class="ro9">${MS.map((m,i)=>chip(G.msg===m,'data-g="msg" data-v="'+i+'"',esc(m))).join('')}</div><input id="g9msg" maxlength="60" value="${esc(G.msg)}" placeholder="or write your own...">
-</div><div class="gf9"><div id="pv9" class="pv9"></div><button class="cl9" data-g="clear">↺ CLEAR</button><button class="sd9" data-g="send">🎁 SEND GIFT</button></div></div>`;
-}
-function pvH(){const e=$('pv9');if(e)e.innerHTML=`<span class="gg9">🎁</span><div><small>YOUR GIFT</small><b>${esc(lbl(G))}</b><small>${G.to==='all'?'→ EVERYONE':G.rc?'→ '+esc(G.rc.nick||G.rc.name):'→ choose a player'}</small></div>`}
-function rcH(){
-  const e=$('rc9');if(!e)return;
-  if(G.pid.length<9){e.className='rc9';e.textContent=G.pid?'Keep typing... '+G.pid.length+'/9':'Type the 9-digit player ID';pvH();return}
-  if(G.lk!==G.pid){G.lk=G.pid;G.rc=null;look(G.pid);e.className='rc9';e.textContent='⏳ Looking for this player...';return}
-  e.className=G.rc?'rc9 ok':'rc9 bad';e.innerHTML=G.rc?`${esc(G.rc.av||'🙂')} <b>${esc(G.rc.nick||G.rc.name)}</b> · LV ${G.rc.lvl||1} ✔`:'❌ No player with this ID';pvH();
-}
-async function look(pid){try{const{fs,db}=await fb,s=await fs.getDoc(fs.doc(db,'players',pid));G.rc=s.exists()?{pid,...s.data()}:null}catch(e){G.rc=null}if(G.pid===pid)rcH()}
-async function send(){
-  const b=buildGift(G);if(!b.ok){t9(b.err);return}
-  const{fs,db,auth}=await fb,u=auth.currentUser;if(!u||u.uid!==OWNER){t9('Only the owner account can send gifts');return}
-  let who='EVERYONE';
-  if(G.to==='one'){if(!G.rc){t9('Enter a valid 9-digit player ID');return}who=(G.rc.nick||G.rc.name)+' (#'+G.rc.pid+')'}
-  if(!confirm('Send '+lbl(b.data)+' to '+who+'?'))return;
-  const base={...b.data,from:u.uid,created:fs.serverTimestamp()};
-  if(G.to==='one'){await fs.addDoc(fs.collection(db,'gifts2'),{...base,to:G.rc.uid,toPid:G.rc.pid,claimed:false});const r=rd('nb_gs9r',[]).filter(x=>x.pid!==G.rc.pid);r.unshift({pid:G.rc.pid,nick:String(G.rc.nick||G.rc.name||'').slice(0,14)});wr('nb_gs9r',r.slice(0,6))}
-  else await fs.addDoc(fs.collection(db,'broadcasts'),base);
-  confetti();snd();t9('✅ Gift sent to '+who+'!');
-}
-const GS=document.createElement('div');GS.id='gs9';document.body.appendChild(GS);
-const open9=()=>{GS.innerHTML=gsH();GS.style.display='flex';pvH();rcH()};
-GS.addEventListener('click',async e=>{
-  if(e.target===GS){GS.style.display='none';return}
-  const b=e.target.closest('[data-g]');if(!b)return;const a=b.dataset.g,v=b.dataset.v;
+// ---------- save writer (gifts / rewards / adjustments) ----------
+async function applyMany(items,streak){
+  if(busy||!U)return false;if(!inLobby()){note('Open the lobby to claim rewards');return false}busy=1;
   try{
-    if(a==='close'){GS.style.display='none';return}
-    if(a==='to')G.to=v;else if(a==='gold')G.gold=G.gold===+v?0:+v;else if(a==='dia')G.dia=G.dia===+v?0:+v;
-    else if(a==='hero')G.chars=tg(G.chars,v);else if(a==='skin')G.wsk=tg(G.wsk,v);
-    else if(a==='pack'){const p=PK[+v][2];G.gold=p.gold||0;G.dia=p.dia||0;G.chars=[...(p.chars||[])];G.wsk=[...(p.wsk||[])]}
-    else if(a==='msg')G.msg=MS[+v];else if(a==='clear'){G.gold=G.dia=0;G.chars=[];G.wsk=[]}
-    else if(a==='rec'){G.pid=v;G.lk=''}
-    else if(a==='send'){await send();return}
-    GS.innerHTML=gsH();pvH();rcH();
-  }catch(er){t9('❌ '+(er.code||er.message||er))}
-});
-GS.addEventListener('input',e=>{const t=e.target;
-  if(t.id==='g9pid'){G.pid=t.value.replace(/\D/g,'').slice(0,9);t.value=G.pid;rcH()}
-  else if(t.id==='g9gold'){G.gold=Math.min(1e6,+t.value.replace(/\D/g,'')||0);pvH()}
-  else if(t.id==='g9dia'){G.dia=Math.min(1e5,+t.value.replace(/\D/g,'')||0);pvH()}
-  else if(t.id==='g9msg'){G.msg=t.value;pvH()}});
-GS.addEventListener('keydown',e=>e.stopPropagation());
+    const sv=getSv();sv.mails=Array.isArray(sv.mails)?sv.mails:[];sv.chars=sv.chars||['aymane'];sv.wsk=sv.wsk||['default'];let g=0,d=0,n=0;const chs=[],sks=[];
+    for(const it of items){if(sv.mails.includes(it.id))continue;g+=it.gold|0;d+=it.dia|0;(it.chars||[]).forEach(c=>{if(!sv.chars.includes(c)){sv.chars.push(c);chs.push(c)}});(it.wsk||[]).forEach(c=>{if(!sv.wsk.includes(c)){sv.wsk.push(c);sks.push(c)}});sv.mails.push(it.id);n++}
+    if(streak){sv.streak9=streak.s;g+=streak.r.gold|0;d+=streak.r.dia|0}
+    const{fs,db}=await fb,mark=()=>Promise.all(items.filter(it=>it.src==='mail').map(it=>fs.updateDoc(fs.doc(db,'mail',it.id),{claimed:true,read:true,claimedAt:fs.serverTimestamp()})));
+    if(!n&&!streak){await mark();busy=0;return true}
+    sv.gold=Math.max(0,(+sv.gold||0)+g);sv.dia=Math.max(0,(+sv.dia||0)+d);sv.mails=sv.mails.slice(-300);
+    const s=JSON.stringify(sv);localStorage.setItem(SAVE,s);
+    await fs.setDoc(fs.doc(db,'users',U.uid),{save:s,updated:fs.serverTimestamp()},{merge:true});await mark();
+    const sg=v=>(v>0?'+':'')+v;try{sessionStorage.setItem('nb_hello',[g?sg(g)+' 🪙':'',d?sg(d)+' 💎':'',...chs.map(c=>'🦸 '+(HEROES[c]||c)),...sks.map(c=>'🎨 '+(SKINS[c]||c))].filter(Boolean).join(' · ')||'✔ Done')}catch(e){}
+    setTimeout(()=>location.reload(),600);return true;
+  }catch(e){busy=0;note('❌ '+(e.code||e.message),6000);return false}
+}
+function autoAdj(){const a=MAIL.find(m=>m.kind==='adj'&&!m.claimed&&!adjTried.has(m.id));if(a&&inLobby()&&!busy){adjTried.add(a.id);note('⚙ The admin adjusted your balance'+(a.body?': '+a.body:''),6000);applyMany([a])}}
 
-// ---------- owner-only button in the lobby top bar ----------
-setInterval(()=>{const bar=document.querySelector('#lb-top .lb-cur');if(!bar)return;const own=acc().id===OWNER;let b=$('gs-btn');
-  if(own&&!b){b=document.createElement('span');b.id='gs-btn';b.className='pill';b.innerHTML='🎁 GIFTS';b.title='Gift Studio';b.onclick=open9;bar.prepend(b)}else if(!own&&b)b.remove()},1000);
+// ---------- inbox ----------
+const streak=()=>{const s=getSv().streak9||{d:'',n:0},cl=s.d===day();return{cl,n:s.n,next:cl?s.n:(s.d===day(-1)?(s.n%7)+1:1)}};
+function items(){const done=getSv().mails||[],ar=rd('nb_ar9',[]);
+  return[...MAIL.filter(m=>m.kind!=='adj'),...ANN].map(m=>{const att=hasAtt(m),cl=m.src==='mail'?!!m.claimed:done.includes(m.id);return{...m,att,cl,un:m.src==='mail'?(!m.read&&!m.claimed):(!ar.includes(m.id)&&!cl)}}).sort((a,b)=>ms(b.created)-ms(a.created))}
+function inH(){
+  const it=items(),s=streak(),cla=it.filter(x=>x.att&&!x.cl).length;
+  const days=REW.map((r,i)=>{const d=i+1,dn=s.cl?d<=s.n:d<s.next,cur=!s.cl&&d===s.next;return `<div class="rw9 ${dn?'dn':''} ${cur?'cur':''}" style="animation-delay:${i*.05}s"><small>DAY ${d}</small><b>${r.gold?'🪙'+r.gold:''}${r.gold&&r.dia?'<br>':''}${r.dia?'💎'+r.dia:''}</b>${dn?'<i>✔</i>':''}</div>`}).join('');
+  const list=it.length?it.map((m,i)=>{const k=KC[m.kind]||KC.msg;return `<div class="mk9 ${m.un?'un':''}" style="--c:${k[1]};animation-delay:${i*.05}s"><span class="ic">${k[0]}</span><div><b>${esc(m.title||'Message')}</b><p>${esc(m.body||'')}</p>${m.att?attH(m):''}<small>${ms(m.created)?new Date(ms(m.created)).toLocaleString():''}${m.src==='ann'?' · broadcast':''}</small><div class="row8">${m.att&&!m.cl?`<button class="gold" data-x="cl9" data-i="${m.src}:${m.id}">🎁 CLAIM</button>`:m.att?'<span class="at9">✔ CLAIMED</span>':''}${m.src==='mail'?`<button data-x="dl9" data-i="${m.id}">🗑</button>`:''}</div></div></div>`}).join(''):'<div class="em8">📭 Your inbox is empty</div>';
+  return `<div class="pc"><div class="hl9" style="--a:#ffe06633"><div><b>📬 INBOX</b><small>Messages & gifts from the game</small></div><span class="x" data-x="cm">✕</span></div><div class="bd7"><h4 class="h9" style="margin-top:0">🔥 DAILY LOGIN STREAK</h4><div class="st9">${days}</div><button class="${s.cl?'':'g'}" data-x="st9" ${s.cl?'disabled style="opacity:.5"':''}>${s.cl?'✔ Come back tomorrow':'🎁 CLAIM DAY '+s.next}</button><h4 class="h9">✉️ MESSAGES</h4>${cla?`<button class="gold" data-x="cla" style="margin-bottom:10px">🎁 CLAIM ALL (${cla})</button>`:''}${list}</div></div>`}
+function openInbox(){INB.innerHTML=inH();INB.style.display='flex';setTimeout(markRead,1200)}
+async function markRead(){
+  const{fs,db}=await fb,ar=rd('nb_ar9',[]);
+  items().filter(x=>x.un&&!x.att).forEach(x=>{if(x.src==='mail')fs.updateDoc(fs.doc(db,'mail',x.id),{read:true}).catch(()=>{});else ar.push(x.id)});
+  try{localStorage.setItem('nb_ar9',JSON.stringify(ar.slice(-200)))}catch(e){}
+}
+function ui9(){const n=items().filter(x=>x.un).length,b=$('in9-btn');if(b){const k=b.querySelector('.bd8');k.textContent=n;k.style.display=n?'':'none'}if(INB.style.display==='flex')INB.innerHTML=inH();N.ui()}
+
+// ---------- block ----------
+window.NB9={blH:()=>BLK.length?BLK.map((b,i)=>`<div class="fr8" style="animation-delay:${i*.05}s"><div class="fi"><b>${esc(b.name||'Player')}</b><small>#${b.pid} · blocked</small></div><button class="g" data-x="unb" data-id="${b.id}">UNBLOCK</button></div>`).join(''):'<div class="em8">Nobody is blocked 😊</div>'};
+async function block(pid){
+  const d=FP[pid]||N.VD[pid]||await load(pid);if(!d||!U)return;
+  if(!confirm('Block '+(d.nick||d.name)+'?\nHe will not be able to message you, invite you or send you friend requests.'))return;
+  const{fs,db}=await fb;await fs.setDoc(fs.doc(db,'blocks',U.uid+'_'+d.uid),{by:U.uid,uid:d.uid,pid,name:d.nick||d.name||'',created:fs.serverTimestamp()});
+  await N.delF(pid,'accepted').catch(()=>{});await N.delF(pid,'pending').catch(()=>{});N.VP.style.display='none';note('🚫 Blocked');N.ui()}
+async function unblock(id){const{fs,db}=await fb;await fs.deleteDoc(fs.doc(db,'blocks',id));note('✔ Unblocked')}
+
+// ---------- friend chat ----------
+const pair=(a,b)=>[a,b].sort().join('_'),cr=()=>rd('nb_cr9',{});
+const unread=pid=>{const r=cr()[pid]||0;return(CHD[pid]||[]).filter(m=>m.to===U.uid&&m.t>r&&!BL.has(m.from)).length};
+function badges(){if(!U)return;document.querySelectorAll('.ub9').forEach(e=>{const n=unread(e.dataset.u),t=n?String(n):'';if(e.textContent!==t)e.textContent=t})}
+new MutationObserver(badges).observe(N.HB,{childList:true,subtree:true});
+async function watch1(pid,uid){
+  if(FW[pid]||BL.has(uid))return;FW[pid]=1;const{fs,db}=await fb;let first=1;
+  fs.onSnapshot(fs.query(fs.collection(db,'dm',pair(U.uid,uid),'msgs'),fs.orderBy('t','desc'),fs.limit(40)),s=>{
+    const L=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.t-b.t),old=CHD[pid]||[];CHD[pid]=L;
+    if(!first)L.filter(m=>m.to===U.uid&&!old.some(o=>o.id===m.id)&&!BL.has(m.from)).forEach(m=>{if(!(CP&&CP.pid===pid&&CHM.style.display==='flex')){const e=note('💬 '+esc(m.fromName||'Friend')+': '+esc(String(m.text).slice(0,60)));e.style.cursor='pointer';e.onclick=()=>{e.remove();openChat(pid)}}});
+    first=0;if(CP&&CP.pid===pid)paintCh();badges()},()=>{});
+}
+const watchF=()=>{if(U)N.friends().forEach(f=>watch1(f.pid,f.uid))};
+async function openChat(pid){
+  const d=FP[pid]||await load(pid);if(!d||!U)return;CP={pid,uid:d.uid,name:d.nick||d.name,d,paint:0};await watch1(pid,d.uid);
+  CHM.innerHTML=`<div class="pc sm"><div class="hl9" style="--a:#5ef6ff33">${av(d,46)}<div><b style="font-size:17px">${esc(CP.name)}</b><small>${N.isOn(d)?'🟢 Online':'⚫ Offline'} · #${pid}</small></div><span class="x" data-x="cm">✕</span></div><div id="cm9"></div><div class="qk9">${['👍','😂','🔥','GG!',"Let's play 🎮",'Wait ⏳'].map(t=>`<button data-x="qk" data-t="${t}">${t}</button>`).join('')}</div><div class="in9"><input id="ci9" maxlength="200" placeholder="Type a message..."><button class="on" data-x="cs">➤</button></div></div>`;
+  CHM.style.display='flex';paintCh();$('ci9').onkeydown=e=>{if(e.key==='Enter')sendDm()};const c=cr();c[pid]=Date.now();try{localStorage.setItem('nb_cr9',JSON.stringify(c))}catch(e){}badges()}
+function paintCh(){
+  const el=$('cm9');if(!el||!CP)return;const L=(CHD[CP.pid]||[]).filter(m=>!BL.has(m.from)),cut=CP.paint;
+  el.innerHTML=L.length?L.map(m=>`<div class="b9 ${m.from===U.uid?'me':''} ${m.t>cut&&cut?'new':''}">${esc(m.text)}<small>${hm(m.t)}</small></div>`).join(''):'<div class="em8">Say hi 👋</div>';CP.paint=Date.now();el.scrollTop=el.scrollHeight;
+  const c=cr();c[CP.pid]=Date.now();try{localStorage.setItem('nb_cr9',JSON.stringify(c))}catch(e){}}
+async function sendDm(t){
+  if(!CP)return;const inp=$('ci9'),text=String(t||(inp&&inp.value)||'').trim().slice(0,200);if(!text)return;if(inp)inp.value='';
+  try{const{fs,db}=await fb;await fs.addDoc(fs.collection(db,'dm',pair(U.uid,CP.uid),'msgs'),{from:U.uid,to:CP.uid,fromName:N.me&&(rd('nb_prof7',{}).nick||rd('nb_acc',{}).name)||'',text,t:Date.now()})}catch(e){note('❌ Message not delivered'+(BL.has(CP.uid)?' (you blocked him)':' — check the Firestore rules'),5000)}}
+
+// ---------- leaderboard ----------
+let lbt='lvl',LBR=null;
+const LBT=[['lvl','LEVEL'],['k','KILLS'],['w','BEST WAVE'],['sc','SCORE']];
+function lbH(){
+  const rows=LBR===null?'<div class="em8">⏳ Loading...</div>':LBR.length?LBR.map((r,i)=>`<div class="lbr9 ${U&&r.pid===U.pid?'me':''}" data-x="lr" data-p="${r.pid}" style="animation-delay:${i*.04}s"><span class="rk">${['🥇','🥈','🥉'][i]||i+1}</span>${av(r,40)}<div class="fi"><b>${esc(r.nick||r.name||'Player')}</b><small>LV ${r.lvl||1} · #${r.pid}</small></div><span class="v">${r[lbt]||0}</span></div>`).join(''):'<div class="em8">No ranking yet — play a match!</div>';
+  return `<div class="pc"><div class="hl9" style="--a:#ffe06655"><div><b>🏆 LEADERBOARD</b><small>Top 20 players</small></div><span class="x" data-x="cm">✕</span></div><div class="tb">${LBT.map(t=>`<button class="${lbt===t[0]?'on':''}" data-x="lt" data-v="${t[0]}">${t[1]}</button>`).join('')}</div><div class="bd7">${rows}</div></div>`}
+async function lbLoad(){LBR=null;LBM.innerHTML=lbH();LBM.style.display='flex';try{const{fs,db}=await fb,s=await fs.getDocs(fs.query(fs.collection(db,'players'),fs.orderBy(lbt,'desc'),fs.limit(20)));LBR=s.docs.map(d=>({pid:d.id,...d.data()})).filter(r=>r[lbt])}catch(e){LBR=[]}LBM.innerHTML=lbH()}
+
+// ---------- admin console ----------
+let atab='send',AK='gift',AT=null,APRE='';
+const opt=o=>Object.entries(o).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+const apH=()=>{const t=AT.t,bn=AT.ban,on=bn&&(!bn.until||Date.now()<bn.until);return `<div class="fr8">${av(t,56)}<div class="fi"><b>${esc(t.nick||t.name)}</b><small>#${AT.pid} · LV ${t.lvl||1} · ${N.isOn(t)?'🟢 online':'⚫ offline'}${on?' · 🚫 BANNED':''}</small></div><button data-x="avp" data-p="${AT.pid}">👁</button></div>
+<h4 class="h9">💰 ADJUST BALANCE (use − to remove)</h4><div class="two2"><input id="ar-g" inputmode="numeric" placeholder="🪙 ± Gold"><input id="ar-d" inputmode="numeric" placeholder="💎 ± Diamonds"></div><input id="ar-r" maxlength="100" placeholder="Reason (the player will see it)"><button class="big r" data-x="ar">⚙ APPLY</button>
+<h4 class="h9">🚫 ACCOUNT BAN</h4>${on?`<div class="er8">Banned ${bn.until?'until '+new Date(bn.until).toLocaleString():'permanently'} — ${esc(bn.reason||'')}</div><button class="g big" data-x="au">✅ UNBAN</button>`:`<input id="ab-r" maxlength="100" placeholder="Reason"><select id="ab-d">${BD.map(([n,v])=>`<option value="${v}">${n}</option>`).join('')}</select><button class="big r" data-x="ab">🚫 BAN THIS ACCOUNT</button>`}
+<button class="big" data-x="ag" data-p="${AT.pid}">✉️ MESSAGE / 🎁 GIFT THIS PLAYER</button>`};
+function adH(){
+  const tb=`<div class="tb">${[['send','🚀 SEND'],['player','👤 PLAYER']].map(t=>`<button class="${atab===t[0]?'on':''}" data-x="at" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>`;
+  const b=atab==='send'?`<div class="ch9">${Object.entries(KC).map(([k,v])=>`<button class="${AK===k?'on':''}" data-x="ak" data-v="${k}" style="--c:${v[1]}">${v[0]} ${k.toUpperCase()}</button>`).join('')}</div><label class="sw9"><input type="checkbox" id="a-all"> 📢 Send to EVERY player (announcement)</label><input id="a-pid" maxlength="9" inputmode="numeric" placeholder="Player ID (9 digits)" value="${APRE}"><input id="a-t" maxlength="60" placeholder="Title"><textarea id="a-b" maxlength="500" placeholder="Write your message..."></textarea><div class="two2"><input id="a-g" inputmode="numeric" placeholder="🪙 Gold"><input id="a-d" inputmode="numeric" placeholder="💎 Diamonds"></div><div class="two2"><select id="a-h"><option value="">🦸 No hero</option>${opt(HEROES)}</select><select id="a-s"><option value="">🎨 No weapon skin</option>${opt(SKINS)}</select></div><button class="gold big" data-x="as">🚀 SEND</button><div id="a-res" class="em8"></div>`
+    :`<div class="sr8"><input id="ap-pid" maxlength="9" inputmode="numeric" placeholder="PLAYER ID" value="${APRE}" style="width:auto"><button class="on" data-x="af">🔎 FIND</button></div><div id="ap9">${AT?apH():'<div class="em8">Find a player to manage his account</div>'}</div>`;
+  return `<div class="pc"><div class="hl9" style="--a:#ff4d6d44"><div><b>🛠 ADMIN CONSOLE</b><small>Full control · only your account sees this</small></div><span class="x" data-x="cm">✕</span></div>${tb}<div class="bd7 ad9">${b}<button data-x="rl9" style="margin-top:12px">📋 COPY FIRESTORE RULES (v9)</button></div></div>`}
+const openAdm=(tab,pid)=>{if(!N.isAd())return;atab=tab||atab;if(pid){APRE=pid;if(tab==='player')AT=null}ADM.innerHTML=adH();ADM.style.display='flex';if(tab==='player'&&pid)aFind()};
+async function aSend(){
+  const o=$('a-res'),all=$('a-all').checked,pid=$('a-pid').value.trim(),gold=Math.floor(+$('a-g').value||0),dia=Math.floor(+$('a-d').value||0),title=$('a-t').value.trim().slice(0,60),body=$('a-b').value.trim().slice(0,500),ch=$('a-h').value,sk=$('a-s').value;
+  if(!title&&!body&&!gold&&!dia&&!ch&&!sk){o.textContent='Write a message or add a gift';return}
+  if(gold<0||dia<0||gold>1e7||dia>1e6){o.textContent='Invalid amounts';return}
+  const data={kind:AK,title:title||(AK==='gift'?'🎁 A gift for you':'Message from the game'),body,gold,dia,chars:ch?[ch]:[],wsk:sk?[sk]:[],from:U.uid},{fs,db}=await fb;
+  if(all){if(!confirm('Send this to EVERY player?'))return;await fs.addDoc(fs.collection(db,'announce'),{...data,created:fs.serverTimestamp()});o.textContent='✅ Sent to everyone';return}
+  if(!/^\d{9}$/.test(pid)){o.textContent='Enter a 9-digit ID (or tick "every player")';return}
+  const t=await load(pid);if(!t){o.textContent='❌ No player with this ID';return}
+  if(!confirm('Send to '+(t.nick||t.name)+' (#'+pid+')?'))return;
+  await fs.addDoc(fs.collection(db,'mail'),{...data,to:t.uid,toPid:pid,claimed:false,read:false,created:fs.serverTimestamp()});o.textContent='✅ Sent to '+(t.nick||t.name)+' (#'+pid+')';note('📨 Sent!')}
+async function aFind(){
+  const pid=$('ap-pid').value.trim(),o=$('ap9');if(!/^\d{9}$/.test(pid)){o.innerHTML='<div class="em8">Enter a 9-digit ID</div>';return}
+  o.innerHTML='<div class="em8">⏳ Searching...</div>';const t=await load(pid);if(!t){AT=null;o.innerHTML='<div class="em8">❌ No player with this ID</div>';return}
+  const{fs,db}=await fb,b=await fs.getDoc(fs.doc(db,'bans',t.uid));AT={pid,t,ban:b.exists()?b.data():null};APRE=pid;o.innerHTML=apH()}
+async function aAdj(){
+  const g=Math.trunc(+$('ar-g').value||0),d=Math.trunc(+$('ar-d').value||0);if(!g&&!d){note('Enter an amount');return}
+  if(!confirm('Apply '+g+' gold / '+d+' diamonds to '+(AT.t.nick||AT.t.name)+'?'))return;const{fs,db}=await fb;
+  await fs.addDoc(fs.collection(db,'mail'),{kind:'adj',title:'Balance adjusted by admin',body:$('ar-r').value.trim().slice(0,100),gold:g,dia:d,chars:[],wsk:[],to:AT.t.uid,toPid:AT.pid,from:U.uid,claimed:false,read:false,created:fs.serverTimestamp()});note('✅ Applied (the player gets it in his lobby)')}
+async function aBan(){
+  if(!confirm('Ban '+(AT.t.nick||AT.t.name)+'?'))return;const{fs,db}=await fb,dur=+$('ab-d').value,b={uid:AT.t.uid,pid:AT.pid,reason:$('ab-r').value.trim().slice(0,100)||'Rule violation',until:dur?Date.now()+dur:0,by:U.uid,created:fs.serverTimestamp()};
+  await fs.setDoc(fs.doc(db,'bans',AT.t.uid),b);AT.ban=b;$('ap9').innerHTML=apH();note('🚫 Account banned')}
+async function aUnban(){const{fs,db}=await fb;await fs.deleteDoc(fs.doc(db,'bans',AT.t.uid));AT.ban=null;$('ap9').innerHTML=apH();note('✅ Unbanned')}
+
+// ---------- click router ----------
+async function act9(e){
+  const b=e.target.closest('[data-x]');if(!b)return;const x=b.dataset.x,p=b.dataset.p,v=b.dataset.v;
+  try{
+    if(x==='cm'){b.closest('.m9').style.display='none'}
+    else if(x==='chat')await openChat(p);else if(x==='blk')await block(p);else if(x==='unb')await unblock(b.dataset.id);
+    else if(x==='adm')openAdm('player',p);
+    else if(x==='cl9'){const[s,id]=b.dataset.i.split(':'),it=items().find(m=>m.src===s&&m.id===id);it&&await applyMany([it])}
+    else if(x==='cla')await applyMany(items().filter(m=>m.att&&!m.cl));
+    else if(x==='dl9'){const{fs,db}=await fb;await fs.deleteDoc(fs.doc(db,'mail',b.dataset.i))}
+    else if(x==='st9'){const s=streak();if(!s.cl)await applyMany([],{s:{d:day(),n:s.next},r:REW[s.next-1]})}
+    else if(x==='cs')await sendDm();else if(x==='qk')await sendDm(b.dataset.t);
+    else if(x==='lt'){lbt=v;lbLoad()}else if(x==='lr'){N.showP(p)}
+    else if(x==='at'){atab=v;ADM.innerHTML=adH()}else if(x==='ak'){AK=v;ADM.innerHTML=adH()}
+    else if(x==='as')await aSend();else if(x==='af')await aFind();else if(x==='ar')await aAdj();else if(x==='ab')await aBan();else if(x==='au')await aUnban();
+    else if(x==='ag'){atab='send';APRE=p;ADM.innerHTML=adH()}else if(x==='avp')N.showP(p);
+    else if(x==='rl9'){navigator.clipboard&&navigator.clipboard.writeText(RULES9).catch(()=>{});b.textContent='✔ COPIED — paste inside Firestore Rules'}
+  }catch(er){note('❌ '+(er.code||er.message),6000)}
+}
+
+// ---------- top-bar buttons ----------
+setInterval(()=>{
+  const fr=$('fr-btn');if(!fr)return;const ok=!!rd('nb_acc',{}).pid;
+  const add=(id,html,fn)=>{let el=$(id);if(!el){el=document.createElement('span');el.id=id;el.className='pill pb9';el.innerHTML=html;el.onclick=fn;fr.after(el)}el.style.display=ok?'':'none'};
+  add('lb9-btn','🏆',lbLoad);add('in9-btn','📬 <i class="bd8" style="display:none;font-style:normal">0</i>',openInbox);
+  if(N.isAd())add('ad9-btn','🛠',()=>openAdm('send'));
+},1000);
 })();
 </script>
 </body>

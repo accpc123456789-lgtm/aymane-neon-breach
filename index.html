@@ -3015,7 +3015,7 @@ P.s=Object.assign({},S0,P.s||{});const S=P.s,sv=()=>wr('nb_prof7',P);
 const acc=()=>rd('nb_acc',null)||{};
 const PID=()=>acc().pid||P.id||(P.id=String(100000000+Math.random()*9e8|0),sv(),P.id);
 const NAME=()=>P.nick||acc().name||'AYMANE';
-const xp=()=>S.kills*10+S.heads*5+S.waves*30+S.matches*20,LV=()=>1+Math.floor(Math.sqrt(xp()/40));
+const bxp=()=>{try{return+JSON.parse(localStorage.getItem('nb_save2')).xpb||0}catch(e){return 0}},xp=()=>S.kills*10+S.heads*5+S.waves*30+S.matches*20+bxp(),LV=()=>1+Math.floor(Math.sqrt(xp()/40));
 const RK=['ROOKIE','SOLDIER','VETERAN','ELITE','MASTER','LEGEND','MYTHIC'],rank=()=>RK[Math.min(6,(LV()-1)/4|0)];
 const pr=()=>{const l=LV(),a=40*(l-1)*(l-1),b=40*l*l;return Math.min(1,Math.max(0,(xp()-a)/(b-a)))};
 const FR=[['NEON',['#5ef6ff','#ff2fd0'],1],['FIRE',['#ff7a2f','#ffe066'],3],['TOXIC',['#66ff33','#00ffcc'],6],['ROYAL',['#b44dff','#ff2fd0'],10],['GOLD',['#ffd700','#fff1a8','#ff9a2f'],15],['RAINBOW',['#f33','#ff3','#3f3','#3ff','#33f','#f3f'],20]];
@@ -3047,7 +3047,7 @@ function rp(){
   const l=LV(),B=BN[P.bn]||BN[0],kd=S.deaths?S.kills/S.deaths:S.kills,ac=S.shots?S.hits/S.shots*100:0,hp=S.kills?S.heads/S.kills*100:0;
   let body='';
   if(ptab==='ov'){
-    const cards=[['KILLS',S.kills,'',0],['HEADSHOTS',S.heads,'',0],['DEATHS',S.deaths,'',0],['K/D RATIO',kd,'',2],['ACCURACY',ac,'%',1],['HEAD %',hp,'%',1],['MATCHES',S.matches,'',0],['BEST WAVE',S.wave,'',0],['BEST SCORE',S.score,'',0],['PLAY TIME',S.time/60,' min',0]];
+    const cards=[['TOTAL XP',xp(),'',0],['KILLS',S.kills,'',0],['HEADSHOTS',S.heads,'',0],['DEATHS',S.deaths,'',0],['K/D RATIO',kd,'',2],['ACCURACY',ac,'%',1],['HEAD %',hp,'%',1],['MATCHES',S.matches,'',0],['BEST WAVE',S.wave,'',0],['BEST SCORE',S.score,'',0],['PLAY TIME',S.time/60,' min',0]];
     body=`<div class="gr">${cards.map((c,i)=>`<div class="sc" style="--h:${i*36};animation-delay:${i*.05}s"><small>${c[0]}</small><b class="cn" data-n="${c[1]}" data-s="${c[2]}" data-d="${c[3]}">0</b></div>`).join('')}</div><div class="two"><div><small style="letter-spacing:.3em;opacity:.7">ABOUT</small><p style="font-size:15px;line-height:1.6">${esc(P.bio)||'—'}</p><small style="opacity:.6">Member since ${new Date(rd('nb_prof7_t',Date.now())).toLocaleDateString()}</small></div><div><canvas id="rd7" width="280" height="260"></canvas></div></div>`;
   }else if(ptab==='bd'){
     body=`<div class="gr" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${AC.map((a,i)=>{const v=Math.min(a[3](),a[4]),ok=v>=a[4];return `<div class="bg7 ${ok?'ok':''}" style="animation-delay:${i*.05}s"><span class="ic">${a[1]}</span><div><b>${a[0]}</b><small>${a[2]}</small><u><i style="width:${v/a[4]*100}%"></i></u></div></div>`}).join('')}</div>`;
@@ -3276,7 +3276,7 @@ const fail=e=>{err=e.code||String(e.message||e);note(/permission/i.test(err)?'�
 
 const BL=new Set();   // blocked uids (filled by v9)
 // ---------- public profile + presence ----------
-function pub(){const P=rd('nb_prof7',{}),s=P.s||{},xp=(s.kills|0)*10+(s.heads|0)*5+(s.waves|0)*30+(s.matches|0)*20;return{nick:nick().slice(0,14),av:P.av||'🦅',fr:P.fr|0,bn:P.bn|0,ti:P.ti||'NEWCOMER',bio:String(P.bio||'').slice(0,60),lvl:1+Math.floor(Math.sqrt(xp/40)),k:s.kills|0,h:s.heads|0,d:s.deaths|0,sh:s.shots|0,hi:s.hits|0,w:s.wave|0,sc:s.score|0,m:s.matches|0,t:Math.round(s.time||0)}}
+function pub(){const P=rd('nb_prof7',{}),s=P.s||{},bx=(()=>{try{return+JSON.parse(localStorage.getItem('nb_save2')).xpb||0}catch(e){return 0}})(),xp=(s.kills|0)*10+(s.heads|0)*5+(s.waves|0)*30+(s.matches|0)*20+bx;return{xp,nick:nick().slice(0,14),av:P.av||'🦅',fr:P.fr|0,bn:P.bn|0,ti:P.ti||'NEWCOMER',bio:String(P.bio||'').slice(0,60),lvl:1+Math.floor(Math.sqrt(xp/40)),k:s.kills|0,h:s.heads|0,d:s.deaths|0,sh:s.shots|0,hi:s.hits|0,w:s.wave|0,sc:s.score|0,m:s.matches|0,t:Math.round(s.time||0)}}
 async function publish(){if(!me)return;try{const{fs,db}=await fb;await fs.updateDoc(fs.doc(db,'players',me.pid),Object.assign(pub(),{seen:fs.serverTimestamp()}));pubErr=''}catch(e){pubErr=e.code||'err'}}
 async function load(pid){try{const{fs,db}=await fb,s=await fs.getDoc(fs.doc(db,'players',pid));if(s.exists()){FP[pid]=s.data();return FP[pid]}}catch(e){fail(e)}return null}
 async function boot(){
@@ -3620,8 +3620,10 @@ setInterval(()=>{
 },1000);
 })();
 </script>
+
 <script>
-/* AYMANE ADDON v9 — GIFT STUDIO + GIFT REVEAL + LAYOUT FIXES · paste right before </body>, AFTER "ADDON v8" */
+/* AYMANE ADDON v9 (XP edition) — GIFT STUDIO + XP GIFTS + GIFT REVEAL + LAYOUT FIXES
+   Delete BOTH old "ADDON v9" blocks and paste this single one right before </body>. */
 (()=>{
 const $=id=>document.getElementById(id),rd=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}},wr=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const raw=k=>{try{return localStorage.getItem(k)}catch(e){return null}},put=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
@@ -3632,25 +3634,27 @@ const fb=(async()=>{const[A,au,fs]=await Promise.all([import(FBV+'firebase-app.j
 
 //PURE-START
 const CHIDS=['nova','ghost','cyber','king'],WSIDS=['blaze','toxic','royal','dia','gold'];
+const lvOf=x=>1+Math.floor(Math.sqrt(Math.max(0,x)/40));                                   // same formula as the profile (ADDON v7)
+const needFor=(xp,n)=>{const T=lvOf(xp)+n;return Math.max(0,Math.ceil(40*(T-1)*(T-1)-xp))};  // XP needed to gain n levels
 function applyGifts(sv,items){   // adds gifts to a save object; every gift id is stored inside the save, so nothing is ever applied twice
-  const got={gold:0,dia:0,chars:[],wsk:[],msgs:[],n:0};
+  const got={gold:0,dia:0,xp:0,chars:[],wsk:[],msgs:[],n:0};
   sv.gifts=Array.isArray(sv.gifts)?sv.gifts:[];sv.chars=Array.isArray(sv.chars)?sv.chars:['aymane'];sv.wsk=Array.isArray(sv.wsk)?sv.wsk:['default'];
   for(const x of items){
     if(sv.gifts.includes(x.id))continue;
-    got.gold+=Math.max(0,Math.min(1e6,x.gold|0));got.dia+=Math.max(0,Math.min(1e5,x.dia|0));
+    got.gold+=Math.max(0,Math.min(1e6,x.gold|0));got.dia+=Math.max(0,Math.min(1e5,x.dia|0));got.xp+=Math.max(0,Math.min(1e6,x.xp|0));
     for(const c of x.chars||[])if(CHIDS.includes(c)&&!sv.chars.includes(c)&&!got.chars.includes(c))got.chars.push(c);
     for(const s of x.wsk||[])if(WSIDS.includes(s)&&!sv.wsk.includes(s)&&!got.wsk.includes(s))got.wsk.push(s);
     if(x.msg)got.msgs.push(String(x.msg).slice(0,60));
     sv.gifts.push(x.id);got.n++;
   }
-  if(got.n){sv.gold=(+sv.gold||0)+got.gold;sv.dia=(+sv.dia||0)+got.dia;sv.chars.push(...got.chars);sv.wsk.push(...got.wsk);sv.gifts=sv.gifts.slice(-300)}
+  if(got.n){sv.gold=(+sv.gold||0)+got.gold;sv.dia=(+sv.dia||0)+got.dia;sv.xpb=Math.min(1e9,(+sv.xpb||0)+got.xp);sv.chars.push(...got.chars);sv.wsk.push(...got.wsk);sv.gifts=sv.gifts.slice(-300)}
   return got;
 }
 function buildGift(G){
-  const gold=Math.max(0,Math.min(1e6,Math.floor(+G.gold||0))),dia=Math.max(0,Math.min(1e5,Math.floor(+G.dia||0)));
+  const gold=Math.max(0,Math.min(1e6,Math.floor(+G.gold||0))),dia=Math.max(0,Math.min(1e5,Math.floor(+G.dia||0))),xp=Math.max(0,Math.min(1e6,Math.floor(+G.xp||0)));
   const chars=(G.chars||[]).filter(c=>CHIDS.includes(c)),wsk=(G.wsk||[]).filter(s=>WSIDS.includes(s));
-  if(!gold&&!dia&&!chars.length&&!wsk.length)return{ok:0,err:'Pick at least one item'};
-  return{ok:1,data:{gold,dia,chars,wsk,msg:String(G.msg||'').slice(0,60)}};
+  if(!gold&&!dia&&!xp&&!chars.length&&!wsk.length)return{ok:0,err:'Pick at least one item'};
+  return{ok:1,data:{gold,dia,xp,chars,wsk,msg:String(G.msg||'').slice(0,60)}};
 }
 //PURE-END
 
@@ -3698,6 +3702,7 @@ st.textContent=`
 .gb9 input{width:100%;box-sizing:border-box;margin:8px 0 2px;padding:12px;border-radius:10px;border:1px solid #5ef6ff;background:#0b0f24;color:#fff;font-size:15px;text-align:center}.gb9 .mi9{width:110px;margin:0;padding:9px;font-size:13px}
 .rc9{margin:6px 0;padding:10px;border-radius:10px;text-align:center;background:#ffffff0c;border:1px dashed #ffffff44;font-size:14px}.rc9.ok{border-color:#5dff8a;background:#5dff8a22}.rc9.bad{border-color:#ff4d6d;background:#ff4d6d22}
 .ro9{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}.ro9>label{width:30px;font-size:20px}
+.lv9{font-size:11px;opacity:.65;margin:2px 0 6px;letter-spacing:.04em}
 .pk9{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.pk9 button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:14px 8px;background:linear-gradient(145deg,#ffe06633,#ff2fd022);border-color:#ffe06699;animation:g9u .5s both}.pk9 span{font-size:34px;animation:g9f 2.6s infinite}.pk9 b{letter-spacing:.2em}.pk9 small{opacity:.8;font-weight:normal;text-align:center}
 .gf9{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 20px;border-top:1px solid #ffffff22;background:#0007}.pv9{flex:1;min-width:200px;display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:14px;background:linear-gradient(100deg,#ffffff14,#ffffff05);border:1px solid #ffe06666}.pv9 small{display:block;opacity:.7;font-size:10px;letter-spacing:.15em}.pv9 b{display:block;font-size:14px}.gg9{font-size:34px;animation:g9f 2s infinite}
 .sd9{font:900 17px "Arial Black",Arial;letter-spacing:.14em;color:#001;border:0;border-radius:14px;padding:15px 26px;cursor:pointer;background:linear-gradient(90deg,#ffe066,#ff2fd0,#7a5cff,#ffe066);background-size:250% 100%;animation:g9s 3s linear infinite,g9b 2s infinite;box-shadow:0 0 28px #f2f9}.sd9:hover{filter:brightness(1.15)}
@@ -3729,7 +3734,7 @@ if(nt)new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeT
 // ---------- reveal popup ----------
 const CH=[['nova','NOVA','🧑‍🎤'],['ghost','GHOST','🥷'],['cyber','CYBER DRAGON','🐉'],['king','GOLDEN KING','👑']],WS=[['blaze','BLAZE','🔥'],['toxic','TOXIC','☣️'],['royal','ROYAL','💜'],['dia','DIAMOND','💎'],['gold','GOLD PLATED','🏆']],NM={};CH.concat(WS).forEach(x=>NM[x[0]]=x);
 function reveal(g){
-  const it=[];if(g.gold)it.push(['🪙','+'+g.gold,'GOLD']);if(g.dia)it.push(['💎','+'+g.dia,'DIAMONDS']);(g.chars||[]).forEach(c=>NM[c]&&it.push([NM[c][2],NM[c][1],'NEW HERO']));(g.wsk||[]).forEach(s=>NM[s]&&it.push([NM[s][2],NM[s][1],'NEW WEAPON SKIN']));
+  const it=[];if(g.gold)it.push(['🪙','+'+g.gold,'GOLD']);if(g.dia)it.push(['💎','+'+g.dia,'DIAMONDS']);if(g.xp)it.push(['⭐','+'+g.xp,'XP']);(g.chars||[]).forEach(c=>NM[c]&&it.push([NM[c][2],NM[c][1],'NEW HERO']));(g.wsk||[]).forEach(s=>NM[s]&&it.push([NM[s][2],NM[s][1],'NEW WEAPON SKIN']));
   const o=document.createElement('div');o.id='rv9';
   o.innerHTML=`<div class="bx9"><div class="gf9x">🎁</div><h2>YOU RECEIVED A GIFT!</h2><div class="gr9">${it.map((x,i)=>`<div class="ic9" style="animation-delay:${.35+i*.16}s"><span>${x[0]}</span><b>${esc(x[1])}</b><small>${x[2]}</small></div>`).join('')}</div>${(g.msgs||[]).slice(0,2).map(m=>`<p class="ms9">“${esc(m)}”</p>`).join('')}<button>✨ AWESOME!</button></div>`;
   document.body.appendChild(o);confetti();snd();o.onclick=e=>{if(e.target===o||e.target.tagName==='BUTTON')o.remove()};
@@ -3737,26 +3742,33 @@ function reveal(g){
 try{const r=sessionStorage.getItem('nb_reveal');if(r){sessionStorage.removeItem('nb_reveal');setTimeout(()=>reveal(JSON.parse(r)),1700)}}catch(e){}
 
 // ---------- GIFT STUDIO (owner only) ----------
-const PK=[['🎉','STARTER',{gold:500,dia:10}],['🔥','PRO',{gold:2500,dia:50,wsk:['blaze']}],['👑','LEGEND',{gold:10000,dia:200,chars:['king'],wsk:['gold']}]];
-const MS=['🎉 A gift for you!','🏆 You earned it!','❤️ Thanks for playing!','🔥 Special event reward!','🌟 Welcome to the family!'],GOLD=[100,500,1000,5000,20000],DIA=[5,10,50,100,500];
-const G={to:'one',pid:'',lk:'',rc:null,gold:0,dia:0,chars:[],wsk:[],msg:MS[0]};
-const lbl=o=>[o.gold&&o.gold+'🪙',o.dia&&o.dia+'💎',(o.chars||[]).map(c=>NM[c][1]).join(', '),(o.wsk||[]).map(s=>NM[s][1]).join(', ')].filter(Boolean).join(' · ')||'— nothing yet —';
+const PK=[['🎉','STARTER',{gold:500,dia:10,xp:200}],['🔥','PRO',{gold:2500,dia:50,xp:1000,wsk:['blaze']}],['👑','LEGEND',{gold:10000,dia:200,xp:5000,chars:['king'],wsk:['gold']}]];
+const MS=['🎉 A gift for you!','🏆 You earned it!','❤️ Thanks for playing!','🔥 Special event reward!','🌟 Welcome to the family!'],GOLD=[100,500,1000,5000,20000],DIA=[5,10,50,100,500],XPS=[100,500,1000,5000,20000];
+const G={to:'one',pid:'',lk:'',rc:null,gold:0,dia:0,xp:0,chars:[],wsk:[],msg:MS[0]};
+const lbl=o=>[o.gold&&o.gold+'🪙',o.dia&&o.dia+'💎',o.xp&&o.xp+'⭐XP',(o.chars||[]).map(c=>NM[c][1]).join(', '),(o.wsk||[]).map(s=>NM[s][1]).join(', ')].filter(Boolean).join(' · ')||'— nothing yet —';
 const chip=(on,at,tx)=>`<button class="ch9 ${on?'on':''}" ${at}>${tx}</button>`,tg=(a,v)=>a.includes(v)?a.filter(x=>x!==v):[...a,v];
 function gsH(){
   const rec=rd('nb_gs9r',[]);
-  return `<div class="gp9"><div class="gh9"><span class="gi9">🎁</span><div><b>GIFT STUDIO</b><small>Make someone's day — gold, diamonds, heroes & skins</small></div><button class="cx9" data-g="close">✕</button></div><div class="gb9">
+  return `<div class="gp9"><div class="gh9"><span class="gi9">🎁</span><div><b>GIFT STUDIO</b><small>Make someone's day — gold, diamonds, XP, heroes & skins</small></div><button class="cx9" data-g="close">✕</button></div><div class="gb9">
 <h4><i>1</i> WHO GETS IT?</h4><div class="sg9"><button class="${G.to==='one'?'on':''}" data-g="to" data-v="one">👤 A PLAYER</button><button class="${G.to==='all'?'on':''}" data-g="to" data-v="all">🌍 EVERYONE</button></div>
 ${G.to==='one'?`<input id="g9pid" maxlength="9" inputmode="numeric" placeholder="PLAYER ID (9 digits)" value="${esc(G.pid)}"><div id="rc9" class="rc9"></div>${rec.length?`<div class="ro9">${rec.map(r=>chip(0,'data-g="rec" data-v="'+esc(r.pid)+'"',esc(r.nick)+' #'+esc(r.pid))).join('')}</div>`:''}`:'<div class="rc9 ok">🌍 Every player gets it next time he enters the lobby (events, weekends, thank-you gifts...)</div>'}
 <h4><i>2</i> QUICK PACKS</h4><div class="pk9">${PK.map((p,i)=>`<button data-g="pack" data-v="${i}" style="animation-delay:${i*.08}s"><span>${p[0]}</span><b>${p[1]}</b><small>${lbl(p[2])}</small></button>`).join('')}</div>
 <h4><i>3</i> OR BUILD YOUR OWN</h4>
 <div class="ro9"><label>🪙</label>${GOLD.map(n=>chip(G.gold===n,'data-g="gold" data-v="'+n+'"','+'+n)).join('')}<input id="g9gold" class="mi9" inputmode="numeric" placeholder="custom" value="${GOLD.includes(G.gold)||!G.gold?'':G.gold}"></div>
 <div class="ro9"><label>💎</label>${DIA.map(n=>chip(G.dia===n,'data-g="dia" data-v="'+n+'"','+'+n)).join('')}<input id="g9dia" class="mi9" inputmode="numeric" placeholder="custom" value="${DIA.includes(G.dia)||!G.dia?'':G.dia}"></div>
+<div class="ro9"><label>⭐</label>${XPS.map(n=>chip(G.xp===n,'data-g="xp" data-v="'+n+'"','+'+n+' XP')).join('')}<input id="g9xp" class="mi9" inputmode="numeric" placeholder="custom XP" value="${XPS.includes(G.xp)||!G.xp?'':G.xp}"></div>
+<div class="ro9"><label>🎯</label>${[1,5,10].map(n=>chip(0,'data-g="lvl" data-v="'+n+'"','+'+n+' LEVEL'+(n>1?'S':''))).join('')}</div>
+<div class="lv9">XP → LEVEL: LV 5 = 640 · LV 10 = 3,240 · LV 20 = 14,440 · LV 50 = 96,040. The “+LEVEL” buttons compute the exact XP for the player above.</div>
 <div class="ro9"><label>🧑‍🚀</label>${CH.map(c=>chip(G.chars.includes(c[0]),'data-g="hero" data-v="'+c[0]+'"',c[2]+' '+c[1])).join('')}</div>
 <div class="ro9"><label>🎨</label>${WS.map(s=>chip(G.wsk.includes(s[0]),'data-g="skin" data-v="'+s[0]+'"',s[2]+' '+s[1])).join('')}</div>
 <h4><i>4</i> A KIND MESSAGE</h4><div class="ro9">${MS.map((m,i)=>chip(G.msg===m,'data-g="msg" data-v="'+i+'"',esc(m))).join('')}</div><input id="g9msg" maxlength="60" value="${esc(G.msg)}" placeholder="or write your own...">
 </div><div class="gf9"><div id="pv9" class="pv9"></div><button class="cl9" data-g="clear">↺ CLEAR</button><button class="sd9" data-g="send">🎁 SEND GIFT</button></div></div>`;
 }
-function pvH(){const e=$('pv9');if(e)e.innerHTML=`<span class="gg9">🎁</span><div><small>YOUR GIFT</small><b>${esc(lbl(G))}</b><small>${G.to==='all'?'→ EVERYONE':G.rc?'→ '+esc(G.rc.nick||G.rc.name):'→ choose a player'}</small></div>`}
+function pvH(){
+  const e=$('pv9');if(!e)return;
+  const rx=G.to==='one'&&G.rc&&typeof G.rc.xp==='number'&&G.xp?`<small>⭐ LV ${lvOf(G.rc.xp)} → LV ${lvOf(G.rc.xp+G.xp)}</small>`:'';
+  e.innerHTML=`<span class="gg9">🎁</span><div><small>YOUR GIFT</small><b>${esc(lbl(G))}</b><small>${G.to==='all'?'→ EVERYONE':G.rc?'→ '+esc(G.rc.nick||G.rc.name):'→ choose a player'}</small>${rx}</div>`;
+}
 function rcH(){
   const e=$('rc9');if(!e)return;
   if(G.pid.length<9){e.className='rc9';e.textContent=G.pid?'Keep typing... '+G.pid.length+'/9':'Type the 9-digit player ID';pvH();return}
@@ -3782,10 +3794,11 @@ GS.addEventListener('click',async e=>{
   const b=e.target.closest('[data-g]');if(!b)return;const a=b.dataset.g,v=b.dataset.v;
   try{
     if(a==='close'){GS.style.display='none';return}
-    if(a==='to')G.to=v;else if(a==='gold')G.gold=G.gold===+v?0:+v;else if(a==='dia')G.dia=G.dia===+v?0:+v;
+    if(a==='to')G.to=v;else if(a==='gold')G.gold=G.gold===+v?0:+v;else if(a==='dia')G.dia=G.dia===+v?0:+v;else if(a==='xp')G.xp=G.xp===+v?0:+v;
+    else if(a==='lvl'){if(G.to==='one'&&G.rc&&typeof G.rc.xp==='number')G.xp=Math.min(1e6,needFor(G.rc.xp,+v));else{t9('Choose a player first (his game must be updated to show his XP)');return}}
     else if(a==='hero')G.chars=tg(G.chars,v);else if(a==='skin')G.wsk=tg(G.wsk,v);
-    else if(a==='pack'){const p=PK[+v][2];G.gold=p.gold||0;G.dia=p.dia||0;G.chars=[...(p.chars||[])];G.wsk=[...(p.wsk||[])]}
-    else if(a==='msg')G.msg=MS[+v];else if(a==='clear'){G.gold=G.dia=0;G.chars=[];G.wsk=[]}
+    else if(a==='pack'){const p=PK[+v][2];G.gold=p.gold||0;G.dia=p.dia||0;G.xp=p.xp||0;G.chars=[...(p.chars||[])];G.wsk=[...(p.wsk||[])]}
+    else if(a==='msg')G.msg=MS[+v];else if(a==='clear'){G.gold=G.dia=G.xp=0;G.chars=[];G.wsk=[]}
     else if(a==='rec'){G.pid=v;G.lk=''}
     else if(a==='send'){await send();return}
     GS.innerHTML=gsH();pvH();rcH();
@@ -3795,6 +3808,7 @@ GS.addEventListener('input',e=>{const t=e.target;
   if(t.id==='g9pid'){G.pid=t.value.replace(/\D/g,'').slice(0,9);t.value=G.pid;rcH()}
   else if(t.id==='g9gold'){G.gold=Math.min(1e6,+t.value.replace(/\D/g,'')||0);pvH()}
   else if(t.id==='g9dia'){G.dia=Math.min(1e5,+t.value.replace(/\D/g,'')||0);pvH()}
+  else if(t.id==='g9xp'){G.xp=Math.min(1e6,+t.value.replace(/\D/g,'')||0);pvH()}
   else if(t.id==='g9msg'){G.msg=t.value;pvH()}});
 GS.addEventListener('keydown',e=>e.stopPropagation());
 
@@ -3803,187 +3817,62 @@ setInterval(()=>{const bar=document.querySelector('#lb-top .lb-cur');if(!bar)ret
   if(own&&!b){b=document.createElement('span');b.id='gs-btn';b.className='pill';b.innerHTML='🎁 GIFTS';b.title='Gift Studio';b.onclick=open9;bar.prepend(b)}else if(!own&&b)b.remove()},1000);
 })();
 </script>
+
 <script>
-/* AYMANE ADDON v9 — GIFT STUDIO + GIFT REVEAL + LAYOUT FIXES · paste right before </body>, AFTER "ADDON v8" */
+/* AYMANE ADDON v11 — CLOUD PROFILE: XP, level, stats, avatar, frame, banner, title, nickname, bio are saved in Firestore
+   Paste right before </body>, AFTER "ADDON v9". Needs ENTRANCE (login) + ADDON v7. No new Firestore rules needed (users/{uid} already allows it). */
 (()=>{
-const $=id=>document.getElementById(id),rd=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}},wr=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-const raw=k=>{try{return localStorage.getItem(k)}catch(e){return null}},put=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
-const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';'),acc=()=>rd('nb_acc',null)||{};
-const OWNER='7y05F07TyIheSQiZIxmYaH9CL8d2',FBV='https://www.gstatic.com/firebasejs/13.3.0/';
+const PK='nb_prof7',TAG='nb_prof7_uid',TK='nb_prof7_t',FBV='https://www.gstatic.com/firebasejs/13.3.0/';
 const CFG={apiKey:'AIzaSyBqFE1FYjCXZsiF3OUcuQ2vIQF5wEaGLag',authDomain:'aymane-neon-breach.firebaseapp.com',projectId:'aymane-neon-breach',storageBucket:'aymane-neon-breach.firebasestorage.app',messagingSenderId:'870918511939',appId:'1:870918511939:web:dfc55f7a6808f200d863f6'};
+const raw=k=>{try{return localStorage.getItem(k)}catch(e){return null}},put=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del=k=>{try{localStorage.removeItem(k)}catch(e){}};
+const jp=s=>{try{return JSON.parse(s)}catch(e){return null}},n0=v=>+v||0,acc=()=>jp(raw('nb_acc'))||{};
+const ST=['kills','heads','deaths','shots','hits','matches','time','wave','score','waves'];
 const fb=(async()=>{const[A,au,fs]=await Promise.all([import(FBV+'firebase-app.js'),import(FBV+'firebase-auth.js'),import(FBV+'firebase-firestore.js')]);const app=A.getApps().length?A.getApp():A.initializeApp(CFG),auth=au.getAuth(app);await auth.authStateReady();return{fs,db:fs.getFirestore(app),auth}})();fb.catch(()=>{});
 
-//PURE-START
-const CHIDS=['nova','ghost','cyber','king'],WSIDS=['blaze','toxic','royal','dia','gold'];
-function applyGifts(sv,items){   // adds gifts to a save object; every gift id is stored inside the save, so nothing is ever applied twice
-  const got={gold:0,dia:0,chars:[],wsk:[],msgs:[],n:0};
-  sv.gifts=Array.isArray(sv.gifts)?sv.gifts:[];sv.chars=Array.isArray(sv.chars)?sv.chars:['aymane'];sv.wsk=Array.isArray(sv.wsk)?sv.wsk:['default'];
-  for(const x of items){
-    if(sv.gifts.includes(x.id))continue;
-    got.gold+=Math.max(0,Math.min(1e6,x.gold|0));got.dia+=Math.max(0,Math.min(1e5,x.dia|0));
-    for(const c of x.chars||[])if(CHIDS.includes(c)&&!sv.chars.includes(c)&&!got.chars.includes(c))got.chars.push(c);
-    for(const s of x.wsk||[])if(WSIDS.includes(s)&&!sv.wsk.includes(s)&&!got.wsk.includes(s))got.wsk.push(s);
-    if(x.msg)got.msgs.push(String(x.msg).slice(0,60));
-    sv.gifts.push(x.id);got.n++;
-  }
-  if(got.n){sv.gold=(+sv.gold||0)+got.gold;sv.dia=(+sv.dia||0)+got.dia;sv.chars.push(...got.chars);sv.wsk.push(...got.wsk);sv.gifts=sv.gifts.slice(-300)}
-  return got;
-}
-function buildGift(G){
-  const gold=Math.max(0,Math.min(1e6,Math.floor(+G.gold||0))),dia=Math.max(0,Math.min(1e5,Math.floor(+G.dia||0)));
-  const chars=(G.chars||[]).filter(c=>CHIDS.includes(c)),wsk=(G.wsk||[]).filter(s=>WSIDS.includes(s));
-  if(!gold&&!dia&&!chars.length&&!wsk.length)return{ok:0,err:'Pick at least one item'};
-  return{ok:1,data:{gold,dia,chars,wsk,msg:String(G.msg||'').slice(0,60)}};
-}
-//PURE-END
+// fingerprint of the things we care about (stats + look)
+const fp=p=>JSON.stringify([ST.map(k=>n0(p&&p.s&&p.s[k])),p&&p.av,p&&p.fr,p&&p.bn,p&&p.ti,p&&p.nick,p&&p.bio]);
+// same account on 2 devices: every stat keeps the BEST value, the look stays the local one
+function merge(loc,cl){const r=Object.assign({},loc),s=Object.assign({},loc.s||{}),c=cl.s||{};ST.forEach(k=>{s[k]=Math.max(n0(s[k]),n0(c[k]))});r.s=s;return r}
 
-//CLAIM-START
-let busy=0,lastB=0;
-async function claim9(){   // receiver side: personal gifts + event gifts for everyone + one welcome gift
-  const a=acc();if(busy||!a.id||!document.body.classList.contains('inlobby'))return;busy=1;
+let uid='',busy=0,lastUp='',wait=0;
+const inLobby=()=>document.body.classList.contains('inlobby');
+
+// 1) when a player logs in: bring his cloud profile to this device (or keep the local one if the cloud has none yet)
+async function sync(){
+  const a=acc();
+  if(busy||!a.id||a.id===uid||Date.now()<wait||!inLobby())return;
+  busy=1;
   try{
     const{fs,db,auth}=await fb,u=auth.currentUser;if(!u||u.uid!==a.id)return;
-    const items=[{id:'welcome',gold:500,dia:20,msg:'🎉 Welcome gift — enjoy the game!'}];
-    const q=await fs.getDocs(fs.query(fs.collection(db,'gifts2'),fs.where('to','==',u.uid),fs.where('claimed','==',false)));
-    q.forEach(d=>items.push({...d.data(),id:d.id,ref:d.ref}));
-    if(Date.now()-lastB>6e5){lastB=Date.now();try{const b=await fs.getDocs(fs.query(fs.collection(db,'broadcasts'),fs.orderBy('created','desc'),fs.limit(3)));b.forEach(d=>{const x=d.data(),t=x.created&&x.created.toMillis?x.created.toMillis():0;if(Date.now()-t<14*864e5)items.push({...x,id:'b_'+d.id})})}catch(e){}}
-    let sv;try{sv=JSON.parse(raw('nb_save2')||'{}')}catch(e){return}
-    const got=applyGifts(sv,items);
-    if(got.n){const s=JSON.stringify(sv);put('nb_save2',s);await fs.setDoc(fs.doc(db,'users',u.uid),{save:s,updated:fs.serverTimestamp()},{merge:true});try{sessionStorage.setItem('nb_reveal',JSON.stringify(got))}catch(e){}}
-    await Promise.all(items.filter(x=>x.ref).map(x=>fs.updateDoc(x.ref,{claimed:true,claimedAt:fs.serverTimestamp()})));   // marked only AFTER the save is safe
-    if(got.n)setTimeout(()=>location.reload(),500);
-  }catch(e){}finally{busy=0}
+    const snap=await fs.getDoc(fs.doc(db,'users',u.uid)),cd=snap.exists()?snap.data():{};
+    const cl=jp(cd.prof),loc=jp(raw(PK)),tag=raw(TAG),other=!!tag&&tag!==u.uid;   // other = the local profile belongs to ANOTHER account
+    const hasLoc=!!loc&&Object.keys(loc).length>0;
+    let next=null;
+    if(cl&&typeof cl==='object')next=(other||!hasLoc)?cl:merge(loc,cl);
+    else if(other)next={};                                                         // new account on a device used by someone else: start clean
+    put(TAG,u.uid);
+    if(next!==null&&fp(next)!==fp(loc)){
+      if(Object.keys(next).length){put(PK,JSON.stringify(next));if(cd.profT)put(TK,String(cd.profT))}else{del(PK);del(TK)}
+      setTimeout(()=>location.reload(),250);return;                                // the profile is read at page start, so reload once
+    }
+    uid=u.uid;lastUp='';await up(true);
+  }catch(e){wait=Date.now()+15000}finally{busy=0}
 }
-//CLAIM-END
-setTimeout(claim9,7000);setInterval(claim9,47000);
 
-// ---------- CSS ----------
-const st=document.createElement('style');
-st.textContent=`
-@keyframes g9f{50%{transform:translateY(-8px) rotate(6deg)}}@keyframes g9s{to{background-position:250% 0}}@keyframes g9u{from{opacity:0;transform:translateY(22px) scale(.92)}}@keyframes g9p{from{opacity:0;transform:scale(0) rotate(-40deg)}}@keyframes g9g{50%{box-shadow:0 0 34px #ffe066cc}}@keyframes g9b{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
-/* START button: bottom right, under the panel (the hero rotate buttons are free again) */
-#lb-bot{left:auto!important;right:16px!important;bottom:18px!important;width:min(450px,44vw)!important;justify-content:center}
-#lobby #lb-go{min-width:0!important;width:100%!important;padding:18px 16px!important;font-size:clamp(20px,2.2vw,28px)!important}
-@media(max-width:820px),(max-height:520px){#lb-bot{width:50vw!important}#lobby #lb-go{font-size:18px!important;padding:12px 10px!important}}
-@media(max-aspect-ratio:1/1){#lb-bot{left:92px!important;right:10px!important;width:auto!important}}
-/* friend notifications: bottom-left, they no longer cover the right panel */
-#nt8{left:14px!important;right:auto!important;top:auto!important;bottom:20px!important}
-/* top bar gift button (owner only) */
-#gs-btn{cursor:pointer;font-weight:bold;border-color:#ffe066!important;background:linear-gradient(135deg,#ff2fd0aa,#ffe06688)!important;animation:g9g 2.4s infinite}#gs-btn:hover{transform:translateY(-2px) scale(1.05)}
-/* studio */
-#gs9{position:fixed;inset:0;z-index:11;display:none;align-items:center;justify-content:center;background:rgba(3,1,14,.86);backdrop-filter:blur(8px);font-family:Arial;color:#fff}
-.gp9{width:min(860px,96vw);height:min(720px,95vh);display:flex;flex-direction:column;border-radius:22px;background:linear-gradient(160deg,#1c1360,#07061e 70%);border:1px solid #ffe06688;box-shadow:0 20px 80px #000,0 0 50px #f2f3;overflow:hidden;animation:g9u .45s both}
-.gh9{display:flex;align-items:center;gap:14px;padding:14px 20px;background:linear-gradient(100deg,#ff2fd066,#7a5cff66,#ffe06655);background-size:200%;animation:g9s 8s linear infinite}.gh9 b{display:block;font:900 22px "Arial Black",Arial;letter-spacing:.18em}.gh9 small{opacity:.85}.gh9 div{flex:1}
-.gi9{font-size:38px;animation:g9f 2.4s infinite}.cx9{font:bold 16px Arial;color:#fff;background:#0007;border:1px solid #fff4;border-radius:50%;width:36px;height:36px;cursor:pointer}
-.gb9{flex:1;overflow:auto;padding:6px 20px 14px;scrollbar-width:thin}.gb9 h4{display:flex;align-items:center;gap:10px;margin:16px 0 8px;font-size:12px;letter-spacing:.3em;color:#ffe066}.gb9 h4 i{font-style:normal;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#ff2fd0,#7a5cff);color:#fff;letter-spacing:0}
-.sg9{display:grid;grid-template-columns:1fr 1fr;gap:8px}.sg9 button,.ch9,.pk9 button,.cl9{font:bold 13px Arial;color:#fff;background:#ffffff14;border:1px solid #ffffff33;border-radius:12px;padding:10px 12px;cursor:pointer;transition:.18s;margin:0;box-shadow:none}
-.sg9 button:hover,.ch9:hover,.pk9 button:hover,.cl9:hover{border-color:#5ef6ff;box-shadow:0 0 14px #0ff6;transform:translateY(-2px)}.sg9 button.on,.ch9.on{background:linear-gradient(135deg,#00e5ffbb,#ff2fd0bb);border-color:#fff;box-shadow:0 0 16px #f2f8}
-.gb9 input{width:100%;box-sizing:border-box;margin:8px 0 2px;padding:12px;border-radius:10px;border:1px solid #5ef6ff;background:#0b0f24;color:#fff;font-size:15px;text-align:center}.gb9 .mi9{width:110px;margin:0;padding:9px;font-size:13px}
-.rc9{margin:6px 0;padding:10px;border-radius:10px;text-align:center;background:#ffffff0c;border:1px dashed #ffffff44;font-size:14px}.rc9.ok{border-color:#5dff8a;background:#5dff8a22}.rc9.bad{border-color:#ff4d6d;background:#ff4d6d22}
-.ro9{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}.ro9>label{width:30px;font-size:20px}
-.pk9{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.pk9 button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:14px 8px;background:linear-gradient(145deg,#ffe06633,#ff2fd022);border-color:#ffe06699;animation:g9u .5s both}.pk9 span{font-size:34px;animation:g9f 2.6s infinite}.pk9 b{letter-spacing:.2em}.pk9 small{opacity:.8;font-weight:normal;text-align:center}
-.gf9{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 20px;border-top:1px solid #ffffff22;background:#0007}.pv9{flex:1;min-width:200px;display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:14px;background:linear-gradient(100deg,#ffffff14,#ffffff05);border:1px solid #ffe06666}.pv9 small{display:block;opacity:.7;font-size:10px;letter-spacing:.15em}.pv9 b{display:block;font-size:14px}.gg9{font-size:34px;animation:g9f 2s infinite}
-.sd9{font:900 17px "Arial Black",Arial;letter-spacing:.14em;color:#001;border:0;border-radius:14px;padding:15px 26px;cursor:pointer;background:linear-gradient(90deg,#ffe066,#ff2fd0,#7a5cff,#ffe066);background-size:250% 100%;animation:g9s 3s linear infinite,g9b 2s infinite;box-shadow:0 0 28px #f2f9}.sd9:hover{filter:brightness(1.15)}
-#t9{position:fixed;left:50%;top:128px;transform:translate(-50%,-30px);z-index:14;padding:11px 22px;border-radius:14px;font:bold 14px Arial;color:#fff;background:linear-gradient(90deg,#ff2fd0,#7a5cff);box-shadow:0 0 26px #f2f8;opacity:0;transition:.35s;pointer-events:none}#t9.on{opacity:1;transform:translate(-50%,0)}
-/* reveal */
-#rv9{position:fixed;inset:0;z-index:13;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#2a0e5acc,#03010ef0);backdrop-filter:blur(6px);font-family:Arial;color:#fff}
-.bx9{text-align:center;padding:26px 30px;max-width:92vw;border-radius:24px;background:linear-gradient(160deg,#1c1360,#07061e);border:2px solid #ffe066;box-shadow:0 0 70px #f2f8,0 0 120px #ffe06644;animation:g9u .6s both}
-.gf9x{font-size:84px;animation:g9f 1.6s infinite,g9p .7s both}.bx9 h2{margin:4px 0 14px;font:900 clamp(20px,4vw,30px) "Arial Black",Arial;letter-spacing:.12em;background:linear-gradient(90deg,#fff,#ffe066,#ff2fd0,#fff);background-size:250%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:g9s 3s linear infinite}
-.gr9{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}.ic9{min-width:108px;padding:14px 12px;border-radius:16px;background:linear-gradient(145deg,#ffe06633,#ff2fd022);border:1px solid #ffe066aa;animation:g9p .55s both}.ic9 span{display:block;font-size:42px}.ic9 b{display:block;margin-top:4px;font:900 20px "Arial Black",Arial;color:#ffe066}.ic9 small{font-size:10px;letter-spacing:.2em;opacity:.8}
-.ms9{margin:14px 0 0;font-size:16px;font-style:italic;color:#5ef6ff}.bx9>button{margin-top:18px;font:900 16px "Arial Black",Arial;letter-spacing:.14em;color:#001;border:0;border-radius:14px;padding:13px 30px;cursor:pointer;background:linear-gradient(90deg,#5ef6ff,#ff2fd0);box-shadow:0 0 24px #0ffa}
-#cf9{position:fixed;inset:0;z-index:15;pointer-events:none}
-`;
-document.head.appendChild(st);
-
-// ---------- helpers ----------
-const T9=document.createElement('div');T9.id='t9';document.body.appendChild(T9);let tt;
-const t9=m=>{T9.textContent=m;T9.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>T9.classList.remove('on'),3400)};
-const snd=()=>[523,659,784,1047].forEach((f,i)=>setTimeout(()=>{try{beep(f,.14,'triangle',.07)}catch(e){}},i*90));
-function confetti(){const c=document.createElement('canvas');c.id='cf9';c.width=innerWidth;c.height=innerHeight;document.body.appendChild(c);const g=c.getContext('2d'),P=[],C=['#5ef6ff','#ff2fd0','#ffe066','#66ff88','#ffffff','#ff7a2f'];
-  for(let i=0;i<170;i++)P.push({x:innerWidth/2,y:innerHeight*.55,vx:(Math.random()-.5)*16,vy:-Math.random()*17-4,s:5+Math.random()*7,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:C[i%6]});
-  let t=0;(function f(){t++;g.clearRect(0,0,c.width,c.height);P.forEach(p=>{p.vy+=.34;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;g.save();g.translate(p.x,p.y);g.rotate(p.r);g.fillStyle=p.c;g.globalAlpha=Math.max(0,1-t/180);g.fillRect(-p.s/2,-p.s/3,p.s,p.s*.6);g.restore()});if(t<180)requestAnimationFrame(f);else c.remove()})()}
-
-// ---------- friend notifications: remove duplicates (the rules warning shows only once a minute) ----------
-let rulesT=0;const nt=$('nt8');
-if(nt)new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType!==1)return;const x=n.textContent;
-  if(/Firestore rules/.test(x)){if(Date.now()-rulesT<6e4)n.remove();else rulesT=Date.now()}
-  else[...nt.children].forEach(c=>{if(c!==n&&c.textContent===x)n.remove()})}))).observe(nt,{childList:true});
-
-// ---------- reveal popup ----------
-const CH=[['nova','NOVA','🧑‍🎤'],['ghost','GHOST','🥷'],['cyber','CYBER DRAGON','🐉'],['king','GOLDEN KING','👑']],WS=[['blaze','BLAZE','🔥'],['toxic','TOXIC','☣️'],['royal','ROYAL','💜'],['dia','DIAMOND','💎'],['gold','GOLD PLATED','🏆']],NM={};CH.concat(WS).forEach(x=>NM[x[0]]=x);
-function reveal(g){
-  const it=[];if(g.gold)it.push(['🪙','+'+g.gold,'GOLD']);if(g.dia)it.push(['💎','+'+g.dia,'DIAMONDS']);(g.chars||[]).forEach(c=>NM[c]&&it.push([NM[c][2],NM[c][1],'NEW HERO']));(g.wsk||[]).forEach(s=>NM[s]&&it.push([NM[s][2],NM[s][1],'NEW WEAPON SKIN']));
-  const o=document.createElement('div');o.id='rv9';
-  o.innerHTML=`<div class="bx9"><div class="gf9x">🎁</div><h2>YOU RECEIVED A GIFT!</h2><div class="gr9">${it.map((x,i)=>`<div class="ic9" style="animation-delay:${.35+i*.16}s"><span>${x[0]}</span><b>${esc(x[1])}</b><small>${x[2]}</small></div>`).join('')}</div>${(g.msgs||[]).slice(0,2).map(m=>`<p class="ms9">“${esc(m)}”</p>`).join('')}<button>✨ AWESOME!</button></div>`;
-  document.body.appendChild(o);confetti();snd();o.onclick=e=>{if(e.target===o||e.target.tagName==='BUTTON')o.remove()};
+// 2) upload the profile whenever it changes
+async function up(force){
+  const a=acc();if(!uid||a.id!==uid)return;
+  const s=raw(PK);if(!s||(s===lastUp&&!force))return;
+  lastUp=s;
+  try{const{fs,db}=await fb;await fs.setDoc(fs.doc(db,'users',uid),{prof:s,profT:n0(jp(raw(TK)))||Date.now(),updated:fs.serverTimestamp()},{merge:true})}catch(e){lastUp=''}
 }
-try{const r=sessionStorage.getItem('nb_reveal');if(r){sessionStorage.removeItem('nb_reveal');setTimeout(()=>reveal(JSON.parse(r)),1700)}}catch(e){}
 
-// ---------- GIFT STUDIO (owner only) ----------
-const PK=[['🎉','STARTER',{gold:500,dia:10}],['🔥','PRO',{gold:2500,dia:50,wsk:['blaze']}],['👑','LEGEND',{gold:10000,dia:200,chars:['king'],wsk:['gold']}]];
-const MS=['🎉 A gift for you!','🏆 You earned it!','❤️ Thanks for playing!','🔥 Special event reward!','🌟 Welcome to the family!'],GOLD=[100,500,1000,5000,20000],DIA=[5,10,50,100,500];
-const G={to:'one',pid:'',lk:'',rc:null,gold:0,dia:0,chars:[],wsk:[],msg:MS[0]};
-const lbl=o=>[o.gold&&o.gold+'🪙',o.dia&&o.dia+'💎',(o.chars||[]).map(c=>NM[c][1]).join(', '),(o.wsk||[]).map(s=>NM[s][1]).join(', ')].filter(Boolean).join(' · ')||'— nothing yet —';
-const chip=(on,at,tx)=>`<button class="ch9 ${on?'on':''}" ${at}>${tx}</button>`,tg=(a,v)=>a.includes(v)?a.filter(x=>x!==v):[...a,v];
-function gsH(){
-  const rec=rd('nb_gs9r',[]);
-  return `<div class="gp9"><div class="gh9"><span class="gi9">🎁</span><div><b>GIFT STUDIO</b><small>Make someone's day — gold, diamonds, heroes & skins</small></div><button class="cx9" data-g="close">✕</button></div><div class="gb9">
-<h4><i>1</i> WHO GETS IT?</h4><div class="sg9"><button class="${G.to==='one'?'on':''}" data-g="to" data-v="one">👤 A PLAYER</button><button class="${G.to==='all'?'on':''}" data-g="to" data-v="all">🌍 EVERYONE</button></div>
-${G.to==='one'?`<input id="g9pid" maxlength="9" inputmode="numeric" placeholder="PLAYER ID (9 digits)" value="${esc(G.pid)}"><div id="rc9" class="rc9"></div>${rec.length?`<div class="ro9">${rec.map(r=>chip(0,'data-g="rec" data-v="'+esc(r.pid)+'"',esc(r.nick)+' #'+esc(r.pid))).join('')}</div>`:''}`:'<div class="rc9 ok">🌍 Every player gets it next time he enters the lobby (events, weekends, thank-you gifts...)</div>'}
-<h4><i>2</i> QUICK PACKS</h4><div class="pk9">${PK.map((p,i)=>`<button data-g="pack" data-v="${i}" style="animation-delay:${i*.08}s"><span>${p[0]}</span><b>${p[1]}</b><small>${lbl(p[2])}</small></button>`).join('')}</div>
-<h4><i>3</i> OR BUILD YOUR OWN</h4>
-<div class="ro9"><label>🪙</label>${GOLD.map(n=>chip(G.gold===n,'data-g="gold" data-v="'+n+'"','+'+n)).join('')}<input id="g9gold" class="mi9" inputmode="numeric" placeholder="custom" value="${GOLD.includes(G.gold)||!G.gold?'':G.gold}"></div>
-<div class="ro9"><label>💎</label>${DIA.map(n=>chip(G.dia===n,'data-g="dia" data-v="'+n+'"','+'+n)).join('')}<input id="g9dia" class="mi9" inputmode="numeric" placeholder="custom" value="${DIA.includes(G.dia)||!G.dia?'':G.dia}"></div>
-<div class="ro9"><label>🧑‍🚀</label>${CH.map(c=>chip(G.chars.includes(c[0]),'data-g="hero" data-v="'+c[0]+'"',c[2]+' '+c[1])).join('')}</div>
-<div class="ro9"><label>🎨</label>${WS.map(s=>chip(G.wsk.includes(s[0]),'data-g="skin" data-v="'+s[0]+'"',s[2]+' '+s[1])).join('')}</div>
-<h4><i>4</i> A KIND MESSAGE</h4><div class="ro9">${MS.map((m,i)=>chip(G.msg===m,'data-g="msg" data-v="'+i+'"',esc(m))).join('')}</div><input id="g9msg" maxlength="60" value="${esc(G.msg)}" placeholder="or write your own...">
-</div><div class="gf9"><div id="pv9" class="pv9"></div><button class="cl9" data-g="clear">↺ CLEAR</button><button class="sd9" data-g="send">🎁 SEND GIFT</button></div></div>`;
-}
-function pvH(){const e=$('pv9');if(e)e.innerHTML=`<span class="gg9">🎁</span><div><small>YOUR GIFT</small><b>${esc(lbl(G))}</b><small>${G.to==='all'?'→ EVERYONE':G.rc?'→ '+esc(G.rc.nick||G.rc.name):'→ choose a player'}</small></div>`}
-function rcH(){
-  const e=$('rc9');if(!e)return;
-  if(G.pid.length<9){e.className='rc9';e.textContent=G.pid?'Keep typing... '+G.pid.length+'/9':'Type the 9-digit player ID';pvH();return}
-  if(G.lk!==G.pid){G.lk=G.pid;G.rc=null;look(G.pid);e.className='rc9';e.textContent='⏳ Looking for this player...';return}
-  e.className=G.rc?'rc9 ok':'rc9 bad';e.innerHTML=G.rc?`${esc(G.rc.av||'🙂')} <b>${esc(G.rc.nick||G.rc.name)}</b> · LV ${G.rc.lvl||1} ✔`:'❌ No player with this ID';pvH();
-}
-async function look(pid){try{const{fs,db}=await fb,s=await fs.getDoc(fs.doc(db,'players',pid));G.rc=s.exists()?{pid,...s.data()}:null}catch(e){G.rc=null}if(G.pid===pid)rcH()}
-async function send(){
-  const b=buildGift(G);if(!b.ok){t9(b.err);return}
-  const{fs,db,auth}=await fb,u=auth.currentUser;if(!u||u.uid!==OWNER){t9('Only the owner account can send gifts');return}
-  let who='EVERYONE';
-  if(G.to==='one'){if(!G.rc){t9('Enter a valid 9-digit player ID');return}who=(G.rc.nick||G.rc.name)+' (#'+G.rc.pid+')'}
-  if(!confirm('Send '+lbl(b.data)+' to '+who+'?'))return;
-  const base={...b.data,from:u.uid,created:fs.serverTimestamp()};
-  if(G.to==='one'){await fs.addDoc(fs.collection(db,'gifts2'),{...base,to:G.rc.uid,toPid:G.rc.pid,claimed:false});const r=rd('nb_gs9r',[]).filter(x=>x.pid!==G.rc.pid);r.unshift({pid:G.rc.pid,nick:String(G.rc.nick||G.rc.name||'').slice(0,14)});wr('nb_gs9r',r.slice(0,6))}
-  else await fs.addDoc(fs.collection(db,'broadcasts'),base);
-  confetti();snd();t9('✅ Gift sent to '+who+'!');
-}
-const GS=document.createElement('div');GS.id='gs9';document.body.appendChild(GS);
-const open9=()=>{GS.innerHTML=gsH();GS.style.display='flex';pvH();rcH()};
-GS.addEventListener('click',async e=>{
-  if(e.target===GS){GS.style.display='none';return}
-  const b=e.target.closest('[data-g]');if(!b)return;const a=b.dataset.g,v=b.dataset.v;
-  try{
-    if(a==='close'){GS.style.display='none';return}
-    if(a==='to')G.to=v;else if(a==='gold')G.gold=G.gold===+v?0:+v;else if(a==='dia')G.dia=G.dia===+v?0:+v;
-    else if(a==='hero')G.chars=tg(G.chars,v);else if(a==='skin')G.wsk=tg(G.wsk,v);
-    else if(a==='pack'){const p=PK[+v][2];G.gold=p.gold||0;G.dia=p.dia||0;G.chars=[...(p.chars||[])];G.wsk=[...(p.wsk||[])]}
-    else if(a==='msg')G.msg=MS[+v];else if(a==='clear'){G.gold=G.dia=0;G.chars=[];G.wsk=[]}
-    else if(a==='rec'){G.pid=v;G.lk=''}
-    else if(a==='send'){await send();return}
-    GS.innerHTML=gsH();pvH();rcH();
-  }catch(er){t9('❌ '+(er.code||er.message||er))}
-});
-GS.addEventListener('input',e=>{const t=e.target;
-  if(t.id==='g9pid'){G.pid=t.value.replace(/\D/g,'').slice(0,9);t.value=G.pid;rcH()}
-  else if(t.id==='g9gold'){G.gold=Math.min(1e6,+t.value.replace(/\D/g,'')||0);pvH()}
-  else if(t.id==='g9dia'){G.dia=Math.min(1e5,+t.value.replace(/\D/g,'')||0);pvH()}
-  else if(t.id==='g9msg'){G.msg=t.value;pvH()}});
-GS.addEventListener('keydown',e=>e.stopPropagation());
-
-// ---------- owner-only button in the lobby top bar ----------
-setInterval(()=>{const bar=document.querySelector('#lb-top .lb-cur');if(!bar)return;const own=acc().id===OWNER;let b=$('gs-btn');
-  if(own&&!b){b=document.createElement('span');b.id='gs-btn';b.className='pill';b.innerHTML='🎁 GIFTS';b.title='Gift Studio';b.onclick=open9;bar.prepend(b)}else if(!own&&b)b.remove()},1000);
+setInterval(sync,2000);
+setInterval(()=>up(),20000);
+setInterval(()=>{try{if(over)up()}catch(e){}},2000);          // right after a match ends
+addEventListener('pagehide',()=>up());
+document.addEventListener('visibilitychange',()=>{if(document.hidden)up()});
+setTimeout(sync,1500);
 })();
 </script>
 </body>

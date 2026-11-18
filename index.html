@@ -2609,7 +2609,7 @@ const vTxt = () => SV.pm === 'normal' ? ({ solo: 'SOLO', duo: 'DUO', squad: 'SQU
 // ---------------- CSS ----------------
 const L9css = document.createElement('style');
 L9css.textContent = `
-body.m9 #wave,body.m9 #score{display:none!important}
+body.mode9 #wave,body.mode9 #score{display:none!important}
 #lb-nav{max-height:calc(100vh - 170px);overflow:auto;scrollbar-width:none}#lb-nav::-webkit-scrollbar{display:none}
 #lobby .nv{width:62px;padding:6px 0 5px}#lobby .nv span{font-size:20px}
 .nb9{position:absolute;right:4px;top:3px;background:#ff3355;border-radius:9px;min-width:16px;padding:0 4px;font:bold 10px Arial;font-style:normal;box-shadow:0 0 8px #f35;animation:bmp .9s infinite}
@@ -2905,7 +2905,7 @@ function finish9(win, title, sub, stats, gold, rp, mode) {
 }
 function startMode() {
   G9.pm = SV.pm; G9.done = false; G9.kills = 0; G9.armor = 0; G9.plAlive = true; G9.spec = false; G9.frz = false; G9.t = 0; G9.fx = 0;
-  bots.splice(0).forEach(b => scene.remove(b.group)); document.body.classList.add('m9'); mh9.style.display = 'flex'; sprintOn = false;
+  bots.splice(0).forEach(b => scene.remove(b.group)); document.body.classList.add('mode9'); mh9.style.display = 'flex'; sprintOn = false;
   if (G9.pm === 'br') brStart(SV.pv.br); else csStart(SV.pv.cs);
 }
 $$('lb-go').addEventListener('click', e => { if (SV.pm !== 'normal' && NET.role !== 'off') { e.stopImmediatePropagation(); toast('Online party works in SURVIVAL only'); } }, true);

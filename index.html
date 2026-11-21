@@ -4701,6 +4701,98 @@ document.addEventListener("keydown",e=>{if(isOpen){if(e.code==="Enter"||e.code==
 document.getElementById("start").addEventListener("click",()=>{if(!seen)setTimeout(open,700)});
 if(touch){const b=document.createElement("button");b.textContent="❓";b.style.cssText="position:fixed;right:14px;top:208px;z-index:4;width:48px;height:48px;border-radius:50%;border:2px solid #5ef6ff;background:rgba(0,229,255,.28);color:#fff;font-size:20px;display:none";b.addEventListener("pointerdown",e=>{e.preventDefault();e.stopPropagation();open()});document.body.appendChild(b);setInterval(()=>{b.style.display=started&&!paused&&!over?"block":"none"},300)}
 }catch(e){console.warn("fix tuto failed",e)}
+try{
+const SEG=[[50,"g",30,"#ff7a2f"],[100,"g",25,"#d4a800"],[200,"g",18,"#33cc66"],[5,"d",10,"#2f9be0"],[500,"g",7,"#9b3dff"],[10,"d",5,"#e0209f"],[1000,"g",3,"#ff3355"],[25,"d",2,"#20c8d8"]];
+const day=()=>new Date().toISOString().slice(0,10);
+const getSv=()=>{try{return JSON.parse(localStorage.getItem("nb_save2")||"{}")}catch(e){return{}}};
+const can=()=>getSv().wheel13!==day();
+const txt=s=>s[0]+(s[1]==="g"?" 🪙":" 💎");
+const $w=id=>document.getElementById(id);
+const bs="padding:12px 26px;border:0;border-radius:12px;font:900 16px Arial;letter-spacing:.1em;cursor:pointer;";
+const box=document.createElement("div");
+box.style.cssText="position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:rgba(3,1,14,.9);backdrop-filter:blur(6px);color:#fff;font-family:Arial,sans-serif";
+box.innerHTML='<div style="font:900 26px Arial;letter-spacing:.2em;color:#ffe066">DAILY WHEEL</div><div style="position:relative"><canvas id="wh13c" width="300" height="300" style="width:min(80vw,320px);height:auto"></canvas><div style="position:absolute;left:50%;top:-6px;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:24px solid #fff"></div></div><div id="wh13t" style="font:bold 18px Arial;min-height:24px"></div><div><button id="wh13s" style="'+bs+'background:linear-gradient(90deg,#ffe066,#ff2fd0);color:#001">SPIN</button> <button id="wh13x" style="'+bs+'background:#ffffff22;color:#fff">CLOSE</button></div>';
+document.body.appendChild(box);
+function draw(rot){
+  const g=$w("wh13c").getContext("2d"),R=145,a=Math.PI/4;
+  g.clearRect(0,0,300,300);g.save();g.translate(150,150);g.rotate(rot);
+  SEG.forEach((s,i)=>{g.beginPath();g.moveTo(0,0);g.arc(0,0,R,i*a,(i+1)*a);g.closePath();g.fillStyle=s[3];g.fill();g.strokeStyle="#0b0a28";g.lineWidth=3;g.stroke();
+    g.save();g.rotate((i+0.5)*a);g.fillStyle="#fff";g.font="bold 18px Arial";g.textAlign="right";g.fillText(txt(s),R-12,7);g.restore()});
+  g.restore();g.beginPath();g.arc(150,150,16,0,7);g.fillStyle="#0b0a28";g.fill();g.strokeStyle="#fff";g.lineWidth=3;g.stroke();
+}
+let spinning=false;
+function spin(){
+  if(spinning||!can())return;spinning=true;
+  let r=Math.random()*SEG.reduce((a,s)=>a+s[2],0),i=0;
+  for(;i<SEG.length-1;i++){r-=SEG[i][2];if(r<0)break}
+  const s=SEG[i],a=Math.PI/4,tgt=((-Math.PI/2-(i+0.5)*a)%(2*Math.PI)+2*Math.PI)%(2*Math.PI),fin=Math.PI*10+tgt,t0=performance.now();
+  const sv=getSv();sv.wheel13=day();if(s[1]==="g")sv.gold=(+sv.gold||0)+s[0];else sv.dia=(+sv.dia||0)+s[0];
+  try{localStorage.setItem("nb_save2",JSON.stringify(sv));sessionStorage.setItem("nb_hello","🎡 +"+txt(s))}catch(e){}
+  $w("wh13s").style.display="none";$w("wh13x").style.display="none";$w("wh13t").textContent="...";
+  (function f(now){
+    const p=Math.min(1,(now-t0)/4500),e=1-Math.pow(1-p,3);draw(fin*e);
+    if(p<1)requestAnimationFrame(f);
+    else{$w("wh13t").textContent="+"+txt(s);try{beep(1000,0.15,"triangle",0.08)}catch(er){}setTimeout(()=>location.reload(),1800)}
+  })(t0);
+}
+function open(){
+  draw(0);box.style.display="flex";const ok=can();
+  $w("wh13s").style.display=ok?"":"none";$w("wh13x").style.display="";
+  $w("wh13t").textContent=ok?"One free spin every day":"Come back tomorrow!";
+}
+$w("wh13s").onclick=spin;
+$w("wh13x").onclick=()=>{if(!spinning)box.style.display="none"};
+setInterval(()=>{
+  const bar=document.querySelector("#lb-top .lb-cur");if(!bar)return;
+  let p=$w("wh13");
+  if(!p){p=document.createElement("span");p.id="wh13";p.className="pill";p.style.cursor="pointer";p.onclick=open;bar.prepend(p)}
+  p.textContent=can()?"🎡 FREE":"🎡";
+},1500);
+}catch(e){console.warn("fix wheel failed",e)}
+try{
+const wk=()=>{const d=new Date(),k=(d.getUTCDay()+6)%7;return new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-k)).toISOString().slice(0,10)};
+const MS=[["kills","Kill 200 enemies",200,"g",600],["heads","Land 60 headshots",60,"d",15],["wave","Reach wave 10 in one match",10,"g",1000],["games","Play 10 matches",10,"g",300]];
+const fresh=()=>({w:wk(),kills:0,heads:0,wave:0,games:0});
+let P;try{P=JSON.parse(localStorage.getItem("nb_week13"))||fresh()}catch(e){P=fresh()}
+if(P.w!==wk())P=fresh();
+let dirty=false;
+const save=()=>{if(dirty){dirty=false;try{localStorage.setItem("nb_week13",JSON.stringify(P))}catch(e){}}};
+setInterval(save,2000);addEventListener("pagehide",save);
+const bump=(k,n)=>{if(P.w!==wk())P=fresh();P[k]+=n;dirty=true};
+const _k=killEnemy;killEnemy=function(e){_k(e);if(started&&!over)bump("kills",1)};
+const _d=damageEnemy;damageEnemy=function(e,d,h,p){const a=!!e&&e.hp>0;_d(e,d,h,p);if(h&&a&&started&&!over)bump("heads",1)};
+document.getElementById("start").addEventListener("click",()=>{if(started&&!over)bump("games",1)});
+setInterval(()=>{if(started&&!over&&!paused&&player.wave>P.wave){P.wave=player.wave;dirty=true}},1000);
+const getSv=()=>{try{return JSON.parse(localStorage.getItem("nb_save2")||"{}")}catch(e){return{}}};
+const claimed=()=>{const s=getSv().week13;return s&&s.w===wk()?(s.c||[]):[]};
+const isDone=i=>P[MS[i][0]]>=MS[i][2];
+const rew=m=>m[4]+(m[3]==="g"?" 🪙":" 💎");
+function claim(i){
+  if(!isDone(i)||claimed().includes(i))return;
+  const sv=getSv(),s=sv.week13&&sv.week13.w===wk()?sv.week13:{w:wk(),c:[]},m=MS[i];
+  s.c=(s.c||[]).concat([i]);sv.week13=s;
+  if(m[3]==="g")sv.gold=(+sv.gold||0)+m[4];else sv.dia=(+sv.dia||0)+m[4];
+  try{localStorage.setItem("nb_save2",JSON.stringify(sv));sessionStorage.setItem("nb_hello","📅 +"+rew(m))}catch(e){}
+  save();setTimeout(()=>location.reload(),300);
+}
+const bt="padding:8px 14px;border:0;border-radius:10px;font:bold 13px Arial;cursor:pointer;";
+const box=document.createElement("div");
+box.style.cssText="position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:rgba(3,1,14,.9);backdrop-filter:blur(6px);color:#fff;font-family:Arial,sans-serif;padding:14px";
+document.body.appendChild(box);
+function render(){
+  const c=claimed();
+  const rows=MS.map((m,i)=>{const v=Math.min(P[m[0]],m[2]),ok=v>=m[2],cl=c.includes(i);
+    return '<div style="padding:10px;margin:8px 0;border-radius:12px;border:1px solid '+(ok?"#5dff8a":"#ffffff22")+';background:#ffffff0a"><div style="display:flex;justify-content:space-between;gap:8px"><b>'+m[1]+'</b><span style="color:#ffe066;white-space:nowrap">'+rew(m)+'</span></div><div style="height:8px;border-radius:5px;background:#0009;margin:8px 0;overflow:hidden"><div style="height:100%;width:'+(v/m[2]*100)+'%;background:linear-gradient(90deg,#5ef6ff,#5dff8a)"></div></div><div style="display:flex;justify-content:space-between;align-items:center"><small>'+v+' / '+m[2]+'</small>'+(cl?'<small style="color:#5dff8a">CLAIMED</small>':ok?'<button data-c="'+i+'" style="'+bt+'background:linear-gradient(90deg,#ffe066,#ff9a2f);color:#001">CLAIM</button>':'')+'</div></div>'}).join("");
+  box.innerHTML='<div style="width:min(520px,96vw);max-height:92vh;overflow:auto;padding:18px;border-radius:20px;background:linear-gradient(160deg,#17124a,#07061e);border:1px solid #ffe06688"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font:900 22px Arial;letter-spacing:.1em;color:#ffe066">WEEKLY MISSIONS</b><button data-x="1" style="'+bt+'background:#ffffff22;color:#fff">X</button></div><div style="opacity:.7;margin:4px 0 10px;font-size:12px">New missions every Monday (UTC)</div>'+rows+'</div>';
+}
+box.addEventListener("click",e=>{if(e.target===box||e.target.closest("[data-x]")){box.style.display="none";return}const b=e.target.closest("[data-c]");if(b)claim(+b.dataset.c)});
+setInterval(()=>{
+  const bar=document.querySelector("#lb-top .lb-cur");if(!bar)return;
+  let p=document.getElementById("wk13");
+  if(!p){p=document.createElement("span");p.id="wk13";p.className="pill";p.style.cursor="pointer";p.onclick=()=>{render();box.style.display="flex"};bar.prepend(p)}
+  const c=claimed();p.textContent=MS.some((m,i)=>isDone(i)&&!c.includes(i))?"📅 !":"📅";
+},1500);
+}catch(e){console.warn("fix weekly failed",e)}
 })();
 </script>
 </body>

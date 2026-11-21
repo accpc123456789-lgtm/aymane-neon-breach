@@ -3,6 +3,7 @@
 <head>
 <script id="nbfix-head">(function(){var n=0,b,p;function add(m){if(!b){var d=document.createElement("div");d.style.cssText="position:fixed;left:6px;bottom:6px;z-index:99999;font:12px monospace;color:#fff;max-width:92vw";b=document.createElement("button");b.style.cssText="background:#c00;color:#fff;border:0;border-radius:8px;padding:6px 10px";p=document.createElement("pre");p.style.cssText="display:none;max-height:40vh;overflow:auto;background:#000d;padding:8px;margin:4px 0 0;white-space:pre-wrap";b.onclick=function(){p.style.display=p.style.display?"":"none"};d.appendChild(b);d.appendChild(p);document.documentElement.appendChild(d)}n++;b.textContent="⚠ "+n;p.appendChild(document.createTextNode(m+" | "))}addEventListener("error",function(e){add(e.message+" @"+(e.lineno||"?"))});addEventListener("unhandledrejection",function(e){add("Promise: "+(e.reason&&e.reason.message||e.reason))})})();</script>
 
+
 <meta charset="UTF-8">
 <title>AYMANE: NEON BREACH</title>
 <style>
@@ -4632,17 +4633,74 @@ setInterval(()=>{const t=matchMedia("(pointer:coarse)").matches&&inG();bm.style.
 }catch(e){console.warn("fix ping failed",e)}
 try{
 let para=false;
+const cg=new THREE.SphereGeometry(1.7,14,7,0,Math.PI*2,0,Math.PI/2),cm={},RC=[0x5ef6ff,0xff3355,0xffaa33,0xb44dff,0x66ff88,0xffe066,0xff2fd0];
+function canopy(e){const c=RC[(e.team||0)%7],m=cm[c]||(cm[c]=new THREE.MeshStandardMaterial({color:c,side:THREE.DoubleSide,roughness:0.6,emissive:c,emissiveIntensity:0.25})),k=new THREE.Mesh(cg,m);k.position.y=3.3;e.group.add(k);e.group.userData.canopy=k}
+function land(e){e.fy=0;e.group.userData.chute=false;const k=e.group.userData.canopy;if(k){e.group.remove(k);e.group.userData.canopy=null}}
 document.getElementById("start").addEventListener("click",()=>{
   if(!started||over)return;const N=window.__nb9;
-  if(N&&N.pm==="br"){player.y=60;player.vy=0;para=true;showMsg("PARACHUTE: steer with WASD",2.5)}
+  if(N&&N.pm==="br"){
+    player.y=60;player.vy=0;para=true;
+    for(const e of enemies)if(e.ft){e.fy=60;e.group.userData.chute=true;canopy(e)}
+    showMsg("EVERYONE DROPS: steer with WASD",2.8);
+  }
 });
+const _sh=shoot;shoot=function(){if(para)return;_sh()};
+const _gr=throwGrenade;throwGrenade=function(){if(para)return;_gr()};
 const _u=update;
 update=function(dt){
-  if(para&&started&&!paused&&!over)player.vy=Math.max(player.vy,-5);
+  const air=[];
+  if(started&&!paused&&!over){
+    if(para)player.vy=Math.max(player.vy,-5);
+    for(const e of enemies)if(e.fy>0){e.cd=1;air.push(e)}
+  }
   _u(dt);
+  for(const e of air){
+    if(enemies.indexOf(e)<0)continue;
+    e.fy=Math.max(0,e.fy-5.4*dt);e.group.position.y=e.fy;
+    if(e.bar)e.bar.position.y=2.35+e.fy;
+    if(e.lbl)e.lbl.position.y=2.7+e.fy;
+    if(e.fy<=0)land(e);
+  }
+  for(const d of dying){const g=d.group;if(g.userData.chute){
+    if(g.userData.canopy){g.remove(g.userData.canopy);g.userData.canopy=null}
+    if(g.position.y>0.05)g.position.y=Math.max(0,g.position.y-40*dt);else g.userData.chute=false}}
   if(para&&player.y<=floorAt(player.x,player.z,player.y)+0.05){para=false;showMsg("LANDED",1.2)}
 };
 }catch(e){console.warn("fix chute failed",e)}
+try{
+const KEY="nb_tut13",touch=matchMedia("(pointer:coarse)").matches;
+let seen=false;try{seen=!!localStorage.getItem(KEY)}catch(e){}
+let lang=/^ar/i.test(navigator.language)?"ar":/^fr/i.test(navigator.language)?"fr":"en",isOpen=false;
+const T={
+ en:{h:"HOW TO PLAY",ok:"GOT IT",
+  pc:[["Move","W A S D (Z Q S D on AZERTY)"],["Sprint / Jump","Shift / Space"],["Aim / Shoot","Mouse / Left click"],["Scope","Right click or F"],["Reload / Grenade","R / G"],["Melee / Crouch","Q / C"],["Weapons / Shield","1 2 3 / 4"],["Ping / Map (BR)","V / M"],["Pause / Settings","P"],["This help","H"]],
+  ph:[["Move","Left stick"],["Aim","Drag on the right side"],["Shoot","🔥 (drag it to aim too)"],["Jump / Reload","⬆ / 🔄"],["Scope / Grenade","🎯 / 💣"],["Crouch / Sprint","🧎 / 🏃"],["Shield / Weapon","🛡 / 🔫"],["Map / Ping (BR)","🗺 / 📍"],["This help","❓"]],
+  tip:{normal:"Survive the waves. After each wave pick a perk. Headshots hit harder.",br:"Everyone parachutes in. Loot up, stay inside the purple zone, be the last team alive.",cs:"Win the rounds. The first team to the target score wins."}},
+ ar:{h:"كيفاش تلعب",ok:"فهمت",
+  pc:[["حركة","W A S D (Z Q S D على AZERTY)"],["جري / قفز","Shift / Space"],["تصويب / ضرب","الفأرة / نقرة يسار"],["منظار","نقرة يمين ولا F"],["إعادة تعبئة / قنبلة","R / G"],["ضرب قريب / انحناء","Q / C"],["أسلحة / درع","1 2 3 / 4"],["علامة / خريطة (BR)","V / M"],["إيقاف / إعدادات","P"],["هاد المساعدة","H"]],
+  ph:[["حركة","العصا اليسرى"],["تصويب","جر على الجهة اليمنى"],["ضرب","🔥 (جرها باش تصوب)"],["قفز / إعادة تعبئة","⬆ / 🔄"],["منظار / قنبلة","🎯 / 💣"],["انحناء / جري","🧎 / 🏃"],["درع / سلاح","🛡 / 🔫"],["خريطة / علامة (BR)","🗺 / 📍"],["هاد المساعدة","❓"]],
+  tip:{normal:"نجّا من الموجات. من بعد كل موجة اختار perk. الضربة فالراس كتضرب أقوى.",br:"الكل كينزل بالمظلة. جمع loot، بقا داخل الدائرة البنفسجية، و كون آخر تيم باقي.",cs:"ربح الجولات. أول تيم كيوصل للنقط المطلوبة كيربح."}},
+ fr:{h:"COMMENT JOUER",ok:"COMPRIS",
+  pc:[["Déplacement","W A S D (Z Q S D en AZERTY)"],["Sprint / Saut","Shift / Espace"],["Viser / Tirer","Souris / Clic gauche"],["Lunette","Clic droit ou F"],["Recharger / Grenade","R / G"],["Mêlée / Accroupi","Q / C"],["Armes / Bouclier","1 2 3 / 4"],["Ping / Carte (BR)","V / M"],["Pause / Réglages","P"],["Cette aide","H"]],
+  ph:[["Déplacement","Joystick gauche"],["Viser","Glisser à droite"],["Tirer","🔥 (glisse-le pour viser)"],["Saut / Recharger","⬆ / 🔄"],["Lunette / Grenade","🎯 / 💣"],["Accroupi / Sprint","🧎 / 🏃"],["Bouclier / Arme","🛡 / 🔫"],["Carte / Ping (BR)","🗺 / 📍"],["Cette aide","❓"]],
+  tip:{normal:"Survis aux vagues. Après chaque vague, choisis un perk. Les tirs à la tête font plus mal.",br:"Tout le monde saute en parachute. Ramasse du loot, reste dans la zone violette, sois la dernière équipe.",cs:"Gagne les manches. La première équipe au score cible gagne."}}
+};
+const box=document.createElement("div");
+box.style.cssText="position:fixed;inset:0;z-index:14;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(3,1,14,.88);backdrop-filter:blur(6px);color:#fff;font-family:Arial,sans-serif";
+document.body.appendChild(box);
+function render(){
+  const t=T[lang],rows=touch?t.ph:t.pc,pm=(window.__nb9&&window.__nb9.pm)||"normal";
+  const lb=["en","ar","fr"].map(l=>'<button data-l="'+l+'" style="margin:0 2px;padding:5px 10px;border-radius:8px;border:1px solid #fff4;background:'+(l===lang?"#00e5ff":"#ffffff14")+';color:'+(l===lang?"#001":"#fff")+';font:bold 12px Arial;cursor:pointer">'+l.toUpperCase()+'</button>').join("");
+  const tr=rows.map(r=>'<tr style="border-bottom:1px solid #ffffff1a"><td style="padding:6px 4px;opacity:.8">'+r[0]+'</td><td style="padding:6px 4px;font-weight:bold;color:#ffe066">'+r[1]+'</td></tr>').join("");
+  box.innerHTML='<div dir="'+(lang==="ar"?"rtl":"ltr")+'" style="width:min(560px,94vw);max-height:92vh;overflow:auto;padding:18px;border-radius:20px;background:linear-gradient(160deg,#17124a,#07061e);border:1px solid #5ef6ff88;box-shadow:0 0 40px #0ff3"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font:900 22px Arial;letter-spacing:.1em;color:#5ef6ff">'+t.h+'</b><span dir="ltr">'+lb+'</span></div><table style="width:100%;margin:12px 0;border-collapse:collapse;font-size:14px">'+tr+'</table><p style="margin:8px 0;color:#5ef6ff">'+(t.tip[pm]||t.tip.normal)+'</p><button data-ok="1" style="width:100%;padding:13px;border:0;border-radius:12px;background:linear-gradient(90deg,#00e5ff,#7a5cff,#ff2fd0);color:#001;font:900 16px Arial;letter-spacing:.1em;cursor:pointer">'+t.ok+' (Enter)</button></div>';
+}
+function open(){if(isOpen||!started||over)return;isOpen=true;mouseDown=false;scoped=false;for(const k in keys)keys[k]=false;paused=true;try{document.exitPointerLock()}catch(e){}render();box.style.display="flex"}
+function close(){if(!isOpen)return;isOpen=false;box.style.display="none";try{localStorage.setItem(KEY,"1")}catch(e){}seen=true;paused=false;try{renderer.domElement.requestPointerLock()}catch(e){}}
+box.addEventListener("click",e=>{const l=e.target.closest("[data-l]");if(l){lang=l.dataset.l;render();return}if(e.target.closest("[data-ok]"))close()});
+document.addEventListener("keydown",e=>{if(isOpen){if(e.code==="Enter"||e.code==="NumpadEnter"){e.preventDefault();close()}return}if(e.code==="KeyH"&&!e.repeat&&started&&!paused&&!over)open()});
+document.getElementById("start").addEventListener("click",()=>{if(!seen)setTimeout(open,700)});
+if(touch){const b=document.createElement("button");b.textContent="❓";b.style.cssText="position:fixed;right:14px;top:208px;z-index:4;width:48px;height:48px;border-radius:50%;border:2px solid #5ef6ff;background:rgba(0,229,255,.28);color:#fff;font-size:20px;display:none";b.addEventListener("pointerdown",e=>{e.preventDefault();e.stopPropagation();open()});document.body.appendChild(b);setInterval(()=>{b.style.display=started&&!paused&&!over?"block":"none"},300)}
+}catch(e){console.warn("fix tuto failed",e)}
 })();
 </script>
 </body>

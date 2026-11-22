@@ -4793,6 +4793,93 @@ setInterval(()=>{
   const c=claimed();p.textContent=MS.some((m,i)=>isDone(i)&&!c.includes(i))?"📅 !":"📅";
 },1500);
 }catch(e){console.warn("fix weekly failed",e)}
+try{
+const season=()=>new Date().toISOString().slice(0,7);
+const LV=100,need=n=>150+5*n;
+const cum=n=>{let s=0;for(let i=1;i<=n;i++)s+=need(i);return s};
+const lvl=xp=>{let n=0;while(n<LV&&xp>=cum(n+1))n++;return n};
+const REW=n=>n===100?{gold:1000,dia:25}:n%25===0?{dia:10}:n%10===0?{dia:5}:n%5===0?{gold:150}:{gold:20+n};
+const rtxt=r=>[r.gold?r.gold+" 🪙":"",r.dia?r.dia+" 💎":""].filter(Boolean).join(" + ");
+let P;try{P=JSON.parse(localStorage.getItem("nb_pass13"))||{s:season(),xp:0}}catch(e){P={s:season(),xp:0}}
+if(P.s!==season())P={s:season(),xp:0};
+let dirty=false,lastW=0;
+const save=()=>{if(dirty){dirty=false;try{localStorage.setItem("nb_pass13",JSON.stringify(P))}catch(e){}}};
+setInterval(save,2000);addEventListener("pagehide",save);
+const add=n=>{if(P.s!==season())P={s:season(),xp:0};P.xp+=n;dirty=true};
+const _k=killEnemy;killEnemy=function(e){_k(e);if(started&&!over)add(10)};
+const _d=damageEnemy;damageEnemy=function(e,d,h,p){const a=!!e&&e.hp>0;_d(e,d,h,p);if(h&&a&&started&&!over)add(5)};
+document.getElementById("start").addEventListener("click",()=>{if(started&&!over){add(20);lastW=0}});
+setInterval(()=>{if(started&&!over&&!paused&&player.wave>lastW){add(30*(player.wave-lastW));lastW=player.wave}},1000);
+const getSv=()=>{try{return JSON.parse(localStorage.getItem("nb_save2")||"{}")}catch(e){return{}}};
+const claimedList=sv=>sv.pass13&&sv.pass13.s===season()?(sv.pass13.c||[]).slice():[];
+const pending=()=>{const c=claimedList(getSv()),L=lvl(P.xp);for(let n=1;n<=L;n++)if(!c.includes(n))return true;return false};
+function claimAll(){
+  const sv=getSv(),c=claimedList(sv),L=lvl(P.xp);let g=0,d=0;const items=[];
+  for(let n=1;n<=L;n++){
+    if(c.includes(n))continue;const r=REW(n);g+=r.gold||0;d+=r.dia||0;
+    c.push(n);
+  }
+  if(!g&&!d&&!items.length&&c.length===claimedList(getSv()).length)return;
+  sv.gold=(+sv.gold||0)+g;sv.dia=(+sv.dia||0)+d;sv.pass13={s:season(),c:c};
+  try{localStorage.setItem("nb_save2",JSON.stringify(sv));sessionStorage.setItem("nb_hello","🎖 "+(g?"+"+g+" 🪙 ":"")+(d?"+"+d+" 💎 ":"")+items.join(" "))}catch(e){}
+  save();setTimeout(()=>location.reload(),300);
+}
+const bt="padding:9px 16px;border:0;border-radius:10px;font:bold 13px Arial;cursor:pointer;";
+const box=document.createElement("div");
+box.style.cssText="position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:rgba(3,1,14,.9);backdrop-filter:blur(6px);color:#fff;font-family:Arial,sans-serif;padding:14px";
+document.body.appendChild(box);
+function render(){
+  const c=claimedList(getSv()),L=lvl(P.xp),next=L<LV?need(L+1):0,into=P.xp-cum(L),av=[];
+  for(let n=1;n<=L;n++)if(!c.includes(n))av.push(n);
+  let rows="";
+  for(let n=1;n<=LV;n++){
+    const r=REW(n),st=c.includes(n)?"done":n<=L?"ready":"lock";
+    rows+='<div data-n="'+n+'" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;margin:4px 0;border-radius:10px;border:1px solid '+(st==="ready"?"#ffe066":"#ffffff1c")+';background:'+(st==="ready"?"#ffe06622":"#ffffff08")+';opacity:'+(st==="lock"?0.55:1)+'"><b>LV '+n+'</b><span>'+rtxt(r)+'</span><span style="font-size:12px">'+(st==="done"?"✔":st==="ready"?"READY":"🔒 "+cum(n)+" XP")+'</span></div>';
+  }
+  box.innerHTML='<div style="width:min(520px,96vw);max-height:92vh;overflow:auto;padding:18px;border-radius:20px;background:linear-gradient(160deg,#17124a,#07061e);border:1px solid #b44dffaa"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font:900 22px Arial;letter-spacing:.1em;color:#d9a0ff">BATTLE PASS</b><button data-x="1" style="'+bt+'background:#ffffff22;color:#fff">X</button></div><div style="opacity:.7;font-size:12px;margin:2px 0 10px">Season '+P.s+' · free track · earn XP by kills, headshots, waves and matches</div><div style="display:flex;align-items:center;gap:12px"><div style="font:900 42px Arial;color:#ffe066">'+L+'</div><div style="flex:1"><div style="height:10px;border-radius:6px;background:#0009;overflow:hidden"><div style="height:100%;width:'+(next?into/next*100:100)+'%;background:linear-gradient(90deg,#5ef6ff,#ff2fd0)"></div></div><small>'+(next?into+" / "+next+" XP to LV "+(L+1):"MAX LEVEL")+'</small></div></div>'+(av.length?'<button data-a="1" style="'+bt+'width:100%;margin:12px 0 4px;background:linear-gradient(90deg,#ffe066,#ff9a2f);color:#001">CLAIM ALL ('+av.length+')</button>':'')+rows+'</div>';
+  const t=box.querySelector('[data-n="'+Math.min(LV,L+1)+'"]');if(t)t.scrollIntoView({block:"center"});
+}
+box.addEventListener("click",e=>{if(e.target===box||e.target.closest("[data-x]")){box.style.display="none";return}if(e.target.closest("[data-a]"))claimAll()});
+setInterval(()=>{
+  const bar=document.querySelector("#lb-top .lb-cur");if(!bar)return;
+  let p=document.getElementById("ps13");
+  if(!p){p=document.createElement("span");p.id="ps13";p.className="pill";p.style.cursor="pointer";p.onclick=()=>{render();box.style.display="flex"};bar.prepend(p)}
+  p.textContent=pending()?"🎖 !":"🎖";
+},1500);
+}catch(e){console.warn("fix pass failed",e)}
+try{
+const inG=()=>started&&!paused&&!over;
+const lay=document.createElement("div");
+lay.style.cssText="position:fixed;inset:0;z-index:2;pointer-events:none;overflow:hidden";
+document.body.appendChild(lay);
+const st=document.createElement("style");
+st.textContent="@keyframes dn13{0%{transform:translate(-50%,-50%) scale(.7);opacity:1}20%{transform:translate(-50%,-70%) scale(1.15)}100%{transform:translate(-50%,-190%) scale(1);opacity:0}}@keyframes lh13{50%{opacity:.35}}";
+document.head.appendChild(st);
+function num(p,txt,col){
+  if(!p||!inG()||lay.children.length>24)return;
+  const v=new THREE.Vector3(p.x,p.y,p.z).project(camera);if(v.z>1)return;
+  const d=document.createElement("div");d.textContent=txt;
+  d.style.cssText="position:absolute;left:"+((v.x*0.5+0.5)*innerWidth+(Math.random()-0.5)*30)+"px;top:"+((-v.y*0.5+0.5)*innerHeight)+"px;color:"+col+";font:900 "+(col==="#fff"?18:24)+"px Arial;text-shadow:0 0 4px #000,0 0 8px #000;animation:dn13 .85s ease-out forwards";
+  lay.appendChild(d);setTimeout(()=>d.remove(),900);
+}
+const _d=damageEnemy;
+damageEnemy=function(e,d,h,p){
+  const hp0=e?e.hp:0;_d(e,d,h,p);
+  if(!e||!inG())return;
+  const dealt=Math.round(hp0-Math.max(e.hp,0));
+  if(dealt>0)num(p||{x:e.x,y:1.6,z:e.z},String(dealt)+(h?"!":""),e.hp<=0?"#ff3355":h?"#ffe066":"#fff");
+};
+const lh=document.createElement("div");
+lh.style.cssText="position:fixed;inset:0;z-index:2;pointer-events:none;display:none;box-shadow:inset 0 0 120px 30px rgba(255,0,40,.55);animation:lh13 .9s infinite";
+document.body.appendChild(lh);
+let hb=0;
+setInterval(()=>{
+  const dead=window.__nb9&&window.__nb9.plAlive===false;
+  const low=inG()&&!dead&&player.hp>0&&player.hp<30;
+  lh.style.display=low?"block":"none";
+  if(low){hb=(hb+1)%3;if(hb===0){try{beep(65,0.14,"sine",0.06)}catch(e){}}}else hb=0;
+},300);
+}catch(e){console.warn("fix feel failed",e)}
 })();
 </script>
 </body>

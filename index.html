@@ -4909,6 +4909,23 @@ setInterval(()=>{
   }else cmb.style.display="none";
 },200);
 }catch(e){console.warn("fix hud2 failed",e)}
+try{
+const solo=()=>window.__nb9&&window.__nb9.pm==="normal"&&document.querySelectorAll("#pt8 .av7").length<=1;
+let used=false,inv=0;
+const _g=gameOver;
+gameOver=function(){
+  if(solo()&&!used&&player.hp<=0){used=true;player.hp=40;inv=3;showMsg("SECOND WIND! (once per match)",2.2);try{beep(500,0.3,"triangle",0.08)}catch(e){}return}
+  _g();
+};
+const _h=hurtPlayer;
+hurtPlayer=function(d){if(inv>0)return;_h(d)};
+const _u=update;
+update=function(dt){
+  if(inv>0)inv-=dt;
+  if(player.wave===0)used=false;
+  _u(dt);
+};
+}catch(e){console.warn("fix wind failed",e)}
 })();
 </script>
 </body>

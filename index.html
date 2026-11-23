@@ -4880,6 +4880,35 @@ setInterval(()=>{
   if(low){hb=(hb+1)%3;if(hb===0){try{beep(65,0.14,"sine",0.06)}catch(e){}}}else hb=0;
 },300);
 }catch(e){console.warn("fix feel failed",e)}
+try{
+const inN=()=>started&&!paused&&!over&&window.__nb9&&window.__nb9.pm==="normal";
+const mk=css=>{const d=document.createElement("div");d.style.cssText="position:fixed;z-index:2;pointer-events:none;font:bold 14px Arial;text-shadow:0 0 6px #000;"+css;document.body.appendChild(d);return d};
+const cnt=mk("top:78px;left:50%;transform:translateX(-50%);color:#fff;letter-spacing:.15em;display:none");
+const cmb=mk("top:104px;left:50%;transform:translateX(-50%);color:#ffe066;font-size:20px;letter-spacing:.1em;display:none");
+const feed=mk("left:14px;top:232px;display:grid;gap:3px;justify-items:start");
+let combo=0,last=0;
+const _k=killEnemy;
+killEnemy=function(e){
+  _k(e);
+  if(!inN()||!e||!e.T)return;
+  const now=performance.now();combo=now-last<4000?combo+1:1;last=now;
+  let bonus=0;if(combo>=3){bonus=Math.round((e.T.score||0)*0.1*(combo-2));player.score+=bonus}
+  const row=document.createElement("div");row.textContent=(e.T.label||"KILL")+" +"+((e.T.score||0)+bonus);
+  row.style.cssText="padding:3px 10px;border-radius:6px;background:#000a;border-left:3px solid "+((TIER[e.T.tier]&&TIER[e.T.tier].rc)||"#fff")+";color:#fff";
+  feed.appendChild(row);while(feed.children.length>5)feed.firstChild.remove();setTimeout(()=>row.remove(),3500);
+};
+setInterval(()=>{
+  const on=inN();
+  cnt.style.display=on?"block":"none";
+  if(on){
+    cnt.textContent="ENEMIES LEFT "+(enemies.length+waveToSpawn);
+    const t=performance.now()-last,live=combo>=2&&t<4000;
+    cmb.style.display=live?"block":"none";
+    if(live)cmb.textContent="COMBO x"+combo+(combo>=3?"  BONUS +"+(combo-2)*10+"%":"");
+    else if(t>=4000)combo=0;
+  }else cmb.style.display="none";
+},200);
+}catch(e){console.warn("fix hud2 failed",e)}
 })();
 </script>
 </body>
